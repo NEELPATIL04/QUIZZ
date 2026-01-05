@@ -242,7 +242,7 @@ export default function HtmlTreeBuilder({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const renderTreeNode = (node: TreeNode, level: number = 0): JSX.Element => {
+  const renderTreeNode = (node: TreeNode, level: number = 0) => {
     const isEmptySlot = node.tag === 'empty-slot';
     const isDragOver = dragOverNode === node.id;
     const hasError = validationErrors.some(err => err.includes(`<${node.tag}>`));
@@ -341,8 +341,8 @@ export default function HtmlTreeBuilder({
             {isDraggingOver && (
               <div className="mt-3 pt-3 border-t border-gray-500/30">
                 <code className="text-xs text-gray-400/80 font-mono">
-                  &lt;div&gt;<br/>
-                  <span className="ml-4">...</span><br/>
+                  &lt;div&gt;<br />
+                  <span className="ml-4">...</span><br />
                   &lt;/div&gt;
                 </code>
               </div>
@@ -461,11 +461,10 @@ export default function HtmlTreeBuilder({
       )}
 
       {/* Validation Status */}
-      <Card className={`border-2 shadow-2xl mb-6 ${
-        isTreeValid
+      <Card className={`border-2 shadow-2xl mb-6 ${isTreeValid
           ? 'bg-green-900/50 border-green-500'
           : 'bg-red-900/50 border-red-500'
-      }`}>
+        }`}>
         <CardContent className="p-6">
           <div className="flex items-center gap-3">
             {isTreeValid ? (
@@ -550,7 +549,7 @@ export default function HtmlTreeBuilder({
                     {isController && !readOnly && !isSubmitted && (
                       <div className="absolute top-1 right-1 bg-blue-600 text-white rounded-full p-1">
                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                         </svg>
                       </div>
                     )}
@@ -599,11 +598,10 @@ export default function HtmlTreeBuilder({
 
       {/* Results */}
       {isSubmitted && result && (
-        <Card className={`border-2 mb-6 ${
-          result.isCorrect
+        <Card className={`border-2 mb-6 ${result.isCorrect
             ? 'bg-green-900/50 border-green-500'
             : 'bg-red-900/50 border-red-500'
-        }`}>
+          }`}>
           <CardContent className="p-8">
             <div className="flex items-center gap-4 mb-4">
               {result.isCorrect ? (

@@ -311,7 +311,7 @@ export default function BrokenHtmlChallenge({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const renderNode = (node: DomNode, level: number = 0, parentTag: string = 'body'): JSX.Element => {
+  const renderNode = (node: DomNode, level: number = 0, parentTag: string = 'body') => {
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedNodes.has(node.id);
     const isDragging = draggedNode?.id === node.id;
@@ -495,11 +495,10 @@ export default function BrokenHtmlChallenge({
       )}
 
       {/* Validation Status */}
-      <Card className={`border-2 shadow-2xl mb-6 ${
-        isTreeValid
+      <Card className={`border-2 shadow-2xl mb-6 ${isTreeValid
           ? 'bg-green-900/50 border-green-500'
           : 'bg-red-900/50 border-red-500'
-      }`}>
+        }`}>
         <CardContent className="p-6">
           <div className="flex items-center gap-3">
             {isTreeValid ? (
@@ -573,11 +572,10 @@ export default function BrokenHtmlChallenge({
 
       {/* Results */}
       {isSubmitted && result && (
-        <Card className={`border-2 mb-6 ${
-          result.isCorrect
+        <Card className={`border-2 mb-6 ${result.isCorrect
             ? 'bg-green-900/50 border-green-500'
             : 'bg-red-900/50 border-red-500'
-        }`}>
+          }`}>
           <CardContent className="p-8">
             <div className="flex items-center gap-4 mb-4">
               {result.isCorrect ? (

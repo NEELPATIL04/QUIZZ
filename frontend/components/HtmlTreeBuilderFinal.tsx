@@ -204,7 +204,7 @@ export default function HtmlTreeBuilderFinal({
   };
 
   // Render tree node
-  const renderTreeNode = (node: TreeNode, level: number = 0): JSX.Element => {
+  const renderTreeNode = (node: TreeNode, level: number = 0) => {
     const isEmptySlot = node.tag === 'empty-slot';
     const isDragOver = dragOverNode === node.id;
     const hasChildren = node.children && node.children.length > 0;
