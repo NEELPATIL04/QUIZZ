@@ -144,8 +144,8 @@ export const initializeTeams = async (req: AuthRequest, res: Response): Promise<
       message: targetTeamCount > currentTeamCount
         ? `Added ${targetTeamCount - currentTeamCount} new team(s)`
         : targetTeamCount < currentTeamCount
-        ? `Removed ${currentTeamCount - targetTeamCount} team(s)`
-        : 'No changes needed',
+          ? `Removed ${currentTeamCount - targetTeamCount} team(s)`
+          : 'No changes needed',
       teams: createdTeams
     });
   } catch (error) {
@@ -194,7 +194,7 @@ export const getAllQuestions = async (req: AuthRequest, res: Response): Promise<
 // Create question
 export const createQuestion = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { questionNumber, title, description, options, correctAnswer, points } = req.body;
+    const { questionNumber, title, description, options, correctAnswer, points, timeLimit } = req.body;
 
     const [newQuestion] = await db.insert(questions).values({
       questionNumber,
@@ -204,11 +204,44 @@ export const createQuestion = async (req: AuthRequest, res: Response): Promise<v
       correctAnswer,
       points: points || 10,
       isEnabled: false,
+      timeLimit: timeLimit || null,
     }).returning();
 
     res.status(201).json({ message: 'Question created', question: newQuestion });
   } catch (error) {
     console.error('Create question error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Update question
+export const updateQuestion = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { questionNumber, title, description, options, correctAnswer, points, timeLimit } = req.body;
+
+    const [updated] = await db
+      .update(questions)
+      .set({
+        questionNumber,
+        title,
+        description,
+        options: options ? JSON.stringify(options) : undefined,
+        correctAnswer,
+        points,
+        timeLimit: timeLimit || null,
+      })
+      .where(eq(questions.id, id))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: 'Question not found' });
+      return;
+    }
+
+    res.json({ message: 'Question updated', question: updated });
+  } catch (error) {
+    console.error('Update question error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

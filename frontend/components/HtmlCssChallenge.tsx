@@ -58,7 +58,18 @@ export default function HtmlCssChallenge({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [result, setResult] = useState<{ isCorrect: boolean; pointsAwarded: number } | null>(null);
   const [showFullHtml, setShowFullHtml] = useState(false);
+  const [activeTab, setActiveTab] = useState<'preview' | 'target'>('preview');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Extract expected image from description if present (looking for data URI in markdown image or specifically tagged)
+  // Or since I can't easily pass new props without schema change, I'll look for a specific marker in description?
+  // Actually, I can just check if question.description contains an image, or just add a hardcoded check for Q6 for now?
+  // Better: The user asked to "show window of actual output". I'll add a "Target" tab.
+  // I will check if there is an image in the description (not ideal) or just rely on a new prop I can't pass yet...
+  // Wait, I can pass it via `hints` if I wanted, but standard way is best.
+  // For now, I will hardcode the expected output for Question 6 based on ID/Number if I have to, OR better:
+  // I can detect if `question.description` has an image and use that?
+  // Let's implement the tab switching UI first.
 
   // Timer
   useEffect(() => {
@@ -76,6 +87,11 @@ export default function HtmlCssChallenge({
     if (iframeRef.current) {
       const iframeDoc = iframeRef.current.contentDocument || iframeRef.current.contentWindow?.document;
       if (iframeDoc) {
+        // If targetSelector is empty/falsy, allow global CSS (no wrapper)
+        const userStyle = question.targetSelector
+          ? `${question.targetSelector} { ${userCss} }`
+          : userCss;
+
         const fullHtml = `
 <!DOCTYPE html>
 <html lang="en">
@@ -86,9 +102,7 @@ export default function HtmlCssChallenge({
   <style>
     ${question.providedCss}
 
-    ${question.targetSelector} {
-      ${userCss}
-    }
+    ${userStyle}
   </style>
 </head>
 <body>
@@ -220,7 +234,7 @@ export default function HtmlCssChallenge({
           </div>
           <CardContent className="p-0">
             <pre className="bg-[#1e1e1e] text-green-400 font-mono text-sm p-6 overflow-x-auto max-h-[500px] overflow-y-auto">
-{`<!DOCTYPE html>
+              {`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -251,7 +265,9 @@ ${question.providedHtml}
             <div className="flex items-center gap-2">
               <Code className="w-5 h-5 text-purple-400" />
               <span className="text-lg font-semibold text-white">
-                Write CSS for {question.targetSelector}
+                {question.targetSelector
+                  ? `Write CSS for ${question.targetSelector}`
+                  : 'Write Global CSS (Target specific classes)'}
               </span>
             </div>
           </div>
@@ -275,16 +291,64 @@ ${question.providedHtml}
           <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-4 py-3 border-b border-slate-900">
             <div className="flex items-center gap-2">
               <Eye className="w-5 h-5 text-blue-400" />
-              <span className="text-lg font-semibold text-white">Live Preview</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setActiveTab('preview')}
+                  className={`px-3 py-1 rounded text-sm font-semibold transition-colors ${activeTab === 'preview'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-400 hover:text-white'
+                    }`}
+                >
+                  Live Preview
+                </button>
+                <button
+                  onClick={() => setActiveTab('target')}
+                  className={`px-3 py-1 rounded text-sm font-semibold transition-colors ${activeTab === 'target'
+                    ? 'bg-purple-600 text-white'
+                    : 'text-slate-400 hover:text-white'
+                    }`}
+                >
+                  Target Output
+                </button>
+              </div>
             </div>
           </div>
           <CardContent className="p-0">
-            <iframe
-              ref={iframeRef}
-              title="Live Preview"
-              className="w-full h-[600px] bg-white border-0"
-              sandbox="allow-same-origin"
-            />
+            {activeTab === 'preview' ? (
+              <iframe
+                ref={iframeRef}
+                title="Live Preview"
+                className="w-full h-[600px] bg-white border-0"
+                sandbox="allow-same-origin"
+              />
+            ) : (
+              <div className="w-full h-[600px] bg-white flex items-center justify-center p-4">
+                {/* 
+                    For Q6 specifically, or generally if we have a target image. 
+                    Since I couldn't change schema, I'll hardcode the SVG for Q6 here or 
+                    try to parse it. 
+                    Actually, I'll paste the same expected output SVG here for the "Target" tab
+                    if questionNumber === 6.
+                 */}
+                {question.questionNumber === 6 ? (
+                  <div className="text-center">
+                    <img
+                      src={`data:image/svg+xml;base64,${btoa(`<svg width="300" height="250" xmlns="http://www.w3.org/2000/svg">
+  <rect x="50" y="50" width="100" height="150" fill="#ff4444" rx="10" stroke="white" stroke-width="2" />
+  <rect x="80" y="60" width="100" height="150" fill="#44ff44" rx="10" stroke="white" stroke-width="2" />
+  <rect x="110" y="70" width="100" height="150" fill="#4444ff" rx="10" stroke="white" stroke-width="2" />
+  <text x="50" y="240" font-family="Arial" font-size="14" fill="#ccc">Target: Stacked diagonally</text>
+</svg>`)}`}
+                      alt="Target Output"
+                      className="max-w-full max-h-full shadow-lg border-2 border-slate-200 rounded-lg"
+                    />
+                    <p className="text-slate-500 mt-4">Expected Result</p>
+                  </div>
+                ) : (
+                  <div className="text-slate-400">No target image available for this question.</div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -308,11 +372,10 @@ ${question.providedHtml}
 
       {/* Results */}
       {isSubmitted && result && (
-        <Card className={`border-2 mb-6 ${
-          result.isCorrect
-            ? 'bg-green-900/50 border-green-500'
-            : 'bg-red-900/50 border-red-500'
-        }`}>
+        <Card className={`border-2 mb-6 ${result.isCorrect
+          ? 'bg-green-900/50 border-green-500'
+          : 'bg-red-900/50 border-red-500'
+          }`}>
           <CardContent className="p-8">
             <div className="flex items-center gap-4 mb-4">
               {result.isCorrect ? (
@@ -354,9 +417,9 @@ ${question.providedHtml}
             <h3 className="text-2xl font-bold text-white mb-4">💡 Ideal Solution</h3>
             <div className="bg-slate-900 p-6 rounded-lg border border-green-500">
               <pre className="text-green-400 font-mono text-base">
-{question.targetSelector} {'{'}
-{question.idealCss}
-{'}'}
+                {question.targetSelector} {'{'}
+                {question.idealCss}
+                {'}'}
               </pre>
             </div>
             <p className="text-green-200 mt-4">

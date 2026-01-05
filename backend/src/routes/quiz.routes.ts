@@ -7,6 +7,7 @@ import {
   deleteTeam,
   getAllQuestions,
   createQuestion,
+  updateQuestion,
   toggleQuestionStatus,
   deleteQuestion,
   setCurrentQuestion,
@@ -46,6 +47,7 @@ router.get('/results', authorize('super_admin'), getTeamResults);
 // Question management routes - both admin and super_admin
 router.get('/questions', authorize('super_admin', 'admin'), getAllQuestions);
 router.post('/questions', authorize('super_admin', 'admin'), createQuestion);
+router.put('/questions/:id', authorize('super_admin', 'admin'), updateQuestion);
 router.patch('/questions/:id/toggle', authorize('super_admin', 'admin'), toggleQuestionStatus);
 router.delete('/questions/:id', authorize('super_admin', 'admin'), deleteQuestion);
 router.post('/current-question', authorize('super_admin', 'admin'), setCurrentQuestion);

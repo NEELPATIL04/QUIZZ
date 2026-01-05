@@ -114,7 +114,7 @@ export default function JsEngineChallenge({
   // Move from source to call stack
   const moveToCallStack = (blockId: string) => {
     const newBlocks = blocks.map(block =>
-      block.id === blockId ? { ...block, location: 'callStack' } : block
+      block.id === blockId ? { ...block, location: 'callStack' as const } : block
     );
     saveToHistory(newBlocks, consoleOutput);
     setBlocks(newBlocks);
@@ -127,7 +127,7 @@ export default function JsEngineChallenge({
     if (sourceBlocks.length === 0) return;
 
     const newBlocks = blocks.map(block =>
-      block.location === 'source' ? { ...block, location: 'callStack' } : block
+      block.location === 'source' ? { ...block, location: 'callStack' as const } : block
     );
     saveToHistory(newBlocks, consoleOutput);
     setBlocks(newBlocks);
@@ -163,7 +163,7 @@ export default function JsEngineChallenge({
 
     const newConsole = [...consoleOutput, block.output];
     const newBlocks = blocks.map(b =>
-      b.id === blockId ? { ...b, location: 'executed' } : b
+      b.id === blockId ? { ...b, location: 'executed' as const } : b
     );
 
     setConsoleOutput(newConsole);
@@ -217,7 +217,7 @@ export default function JsEngineChallenge({
     if (targetLocation === 'executed' && block.output) {
       const newConsole = [...consoleOutput, block.output];
       const newBlocks = blocks.map(b =>
-        b.id === blockId ? { ...b, location: 'executed' } : b
+        b.id === blockId ? { ...b, location: 'executed' as const } : b
       );
       setConsoleOutput(newConsole);
       saveToHistory(newBlocks, newConsole);
@@ -431,11 +431,10 @@ export default function JsEngineChallenge({
                     draggable={isController && !readOnly && !isSubmitted}
                     onDragStart={(e) => handleDragStart(e, block.id)}
                     onDragEnd={handleDragEnd}
-                    className={`bg-muted border border-border rounded p-3 transition-all ${
-                      isController && !readOnly && !isSubmitted
-                        ? 'hover:border-primary/50 cursor-move'
-                        : 'cursor-default opacity-60'
-                    }`}
+                    className={`bg-muted border border-border rounded p-3 transition-all ${isController && !readOnly && !isSubmitted
+                      ? 'hover:border-primary/50 cursor-move'
+                      : 'cursor-default opacity-60'
+                      }`}
                   >
                     <pre className="text-sm text-foreground font-mono whitespace-pre-wrap pointer-events-none">{block.code}</pre>
                   </div>
@@ -463,9 +462,8 @@ export default function JsEngineChallenge({
         <div className="col-span-4 space-y-4">
           {/* Call Stack */}
           <Card
-            className={`border-2 transition-colors ${
-              draggedBlock ? 'border-chart-1 bg-chart-1/20' : 'border-chart-1/30 bg-chart-1/5'
-            }`}
+            className={`border-2 transition-colors ${draggedBlock ? 'border-chart-1 bg-chart-1/20' : 'border-chart-1/30 bg-chart-1/5'
+              }`}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, 'callStack')}
           >
@@ -479,11 +477,10 @@ export default function JsEngineChallenge({
                     draggable={isController && !readOnly && !isSubmitted}
                     onDragStart={(e) => handleDragStart(e, block.id)}
                     onDragEnd={handleDragEnd}
-                    className={`bg-card border-2 border-chart-1/50 rounded p-3 shadow-sm transition-all ${
-                      isController && !readOnly && !isSubmitted
-                        ? 'cursor-move hover:border-chart-1'
-                        : 'cursor-default opacity-60'
-                    }`}
+                    className={`bg-card border-2 border-chart-1/50 rounded p-3 shadow-sm transition-all ${isController && !readOnly && !isSubmitted
+                      ? 'cursor-move hover:border-chart-1'
+                      : 'cursor-default opacity-60'
+                      }`}
                   >
                     <pre className="text-sm text-foreground font-mono whitespace-pre-wrap pointer-events-none">{block.code}</pre>
                   </div>
@@ -494,9 +491,8 @@ export default function JsEngineChallenge({
 
           {/* Web API */}
           <Card
-            className={`border-2 transition-colors ${
-              draggedBlock ? 'border-chart-4 bg-chart-4/20' : 'border-chart-4/30 bg-chart-4/5'
-            }`}
+            className={`border-2 transition-colors ${draggedBlock ? 'border-chart-4 bg-chart-4/20' : 'border-chart-4/30 bg-chart-4/5'
+              }`}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, 'webApi')}
           >
@@ -510,11 +506,10 @@ export default function JsEngineChallenge({
                     draggable={isController && !readOnly && !isSubmitted}
                     onDragStart={(e) => handleDragStart(e, block.id)}
                     onDragEnd={handleDragEnd}
-                    className={`bg-card border-2 border-chart-4/50 rounded p-3 shadow-sm transition-all ${
-                      isController && !readOnly && !isSubmitted
-                        ? 'cursor-move hover:border-chart-4'
-                        : 'cursor-default opacity-60'
-                    }`}
+                    className={`bg-card border-2 border-chart-4/50 rounded p-3 shadow-sm transition-all ${isController && !readOnly && !isSubmitted
+                      ? 'cursor-move hover:border-chart-4'
+                      : 'cursor-default opacity-60'
+                      }`}
                   >
                     <pre className="text-sm text-foreground font-mono whitespace-pre-wrap pointer-events-none mb-1">{block.code}</pre>
                     <span className="text-chart-4 font-bold text-xs">
@@ -543,9 +538,8 @@ export default function JsEngineChallenge({
         <div className="col-span-4">
           {/* Console Output */}
           <Card
-            className={`border-2 transition-colors ${
-              draggedBlock ? 'border-primary bg-primary/10' : 'border-primary/20'
-            }`}
+            className={`border-2 transition-colors ${draggedBlock ? 'border-primary bg-primary/10' : 'border-primary/20'
+              }`}
           >
             <CardContent className="p-4">
               <h3 className="text-xl font-bold text-foreground mb-4">💻 Console Output</h3>
@@ -591,75 +585,71 @@ export default function JsEngineChallenge({
 
           {/* Queues Below Console */}
           <div className="grid grid-cols-2 gap-4 mt-4">
-        {/* Microtask Queue */}
-        <Card
-          className={`border-2 transition-colors ${
-            draggedBlock ? 'border-chart-2 bg-chart-2/20' : 'border-chart-2/30 bg-chart-2/5'
-          }`}
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDrop(e, 'microtask')}
-        >
-          <CardContent className="p-4">
-            <h3 className="text-lg font-bold text-foreground mb-4">✅ Microtask Queue</h3>
-            <p className="text-xs text-muted-foreground mb-2">Drag here or click to execute</p>
-            <div className="space-y-2 min-h-[100px]">
-              {getBlocksByLocation('microtask').map((block) => (
-                <div
-                  key={block.id}
-                  draggable={isController && !readOnly && !isSubmitted}
-                  onDragStart={(e) => handleDragStart(e, block.id)}
-                  onDragEnd={handleDragEnd}
-                  onClick={() => executeFromQueue(block.id)}
-                  className={`bg-card border-2 border-chart-2/50 rounded p-2 transition-all shadow-sm ${
-                    isController && !readOnly && !isSubmitted
-                      ? 'cursor-pointer hover:border-chart-2 hover:bg-chart-2/10'
-                      : 'cursor-default opacity-60'
-                  }`}
-                >
-                  <pre className="text-xs text-foreground font-mono whitespace-pre-wrap mb-1 pointer-events-none">{block.code.split('\n')[0]}</pre>
-                  {isController && !readOnly && !isSubmitted && (
-                    <p className="text-xs text-muted-foreground italic pointer-events-none">Click to execute</p>
-                  )}
+            {/* Microtask Queue */}
+            <Card
+              className={`border-2 transition-colors ${draggedBlock ? 'border-chart-2 bg-chart-2/20' : 'border-chart-2/30 bg-chart-2/5'
+                }`}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, 'microtask')}
+            >
+              <CardContent className="p-4">
+                <h3 className="text-lg font-bold text-foreground mb-4">✅ Microtask Queue</h3>
+                <p className="text-xs text-muted-foreground mb-2">Drag here or click to execute</p>
+                <div className="space-y-2 min-h-[100px]">
+                  {getBlocksByLocation('microtask').map((block) => (
+                    <div
+                      key={block.id}
+                      draggable={isController && !readOnly && !isSubmitted}
+                      onDragStart={(e) => handleDragStart(e, block.id)}
+                      onDragEnd={handleDragEnd}
+                      onClick={() => executeFromQueue(block.id)}
+                      className={`bg-card border-2 border-chart-2/50 rounded p-2 transition-all shadow-sm ${isController && !readOnly && !isSubmitted
+                        ? 'cursor-pointer hover:border-chart-2 hover:bg-chart-2/10'
+                        : 'cursor-default opacity-60'
+                        }`}
+                    >
+                      <pre className="text-xs text-foreground font-mono whitespace-pre-wrap mb-1 pointer-events-none">{block.code.split('\n')[0]}</pre>
+                      {isController && !readOnly && !isSubmitted && (
+                        <p className="text-xs text-muted-foreground italic pointer-events-none">Click to execute</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {/* Macrotask Queue */}
-        <Card
-          className={`border-2 transition-colors ${
-            draggedBlock ? 'border-chart-5 bg-chart-5/20' : 'border-chart-5/30 bg-chart-5/5'
-          }`}
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDrop(e, 'macrotask')}
-        >
-          <CardContent className="p-4">
-            <h3 className="text-lg font-bold text-foreground mb-4">📋 Macrotask Queue</h3>
-            <p className="text-xs text-muted-foreground mb-2">Drag here or click to execute</p>
-            <div className="space-y-2 min-h-[100px]">
-              {getBlocksByLocation('macrotask').map((block) => (
-                <div
-                  key={block.id}
-                  draggable={isController && !readOnly && !isSubmitted}
-                  onDragStart={(e) => handleDragStart(e, block.id)}
-                  onDragEnd={handleDragEnd}
-                  onClick={() => executeFromQueue(block.id)}
-                  className={`bg-card border-2 border-chart-5/50 rounded p-2 transition-all shadow-sm ${
-                    isController && !readOnly && !isSubmitted
-                      ? 'cursor-pointer hover:border-chart-5 hover:bg-chart-5/10'
-                      : 'cursor-default opacity-60'
-                  }`}
-                >
-                  <pre className="text-xs text-foreground font-mono whitespace-pre-wrap mb-1 pointer-events-none">{block.code.split('\n')[0]}</pre>
-                  {isController && !readOnly && !isSubmitted && (
-                    <p className="text-xs text-muted-foreground italic pointer-events-none">Click to execute</p>
-                  )}
+            {/* Macrotask Queue */}
+            <Card
+              className={`border-2 transition-colors ${draggedBlock ? 'border-chart-5 bg-chart-5/20' : 'border-chart-5/30 bg-chart-5/5'
+                }`}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, 'macrotask')}
+            >
+              <CardContent className="p-4">
+                <h3 className="text-lg font-bold text-foreground mb-4">📋 Macrotask Queue</h3>
+                <p className="text-xs text-muted-foreground mb-2">Drag here or click to execute</p>
+                <div className="space-y-2 min-h-[100px]">
+                  {getBlocksByLocation('macrotask').map((block) => (
+                    <div
+                      key={block.id}
+                      draggable={isController && !readOnly && !isSubmitted}
+                      onDragStart={(e) => handleDragStart(e, block.id)}
+                      onDragEnd={handleDragEnd}
+                      onClick={() => executeFromQueue(block.id)}
+                      className={`bg-card border-2 border-chart-5/50 rounded p-2 transition-all shadow-sm ${isController && !readOnly && !isSubmitted
+                        ? 'cursor-pointer hover:border-chart-5 hover:bg-chart-5/10'
+                        : 'cursor-default opacity-60'
+                        }`}
+                    >
+                      <pre className="text-xs text-foreground font-mono whitespace-pre-wrap mb-1 pointer-events-none">{block.code.split('\n')[0]}</pre>
+                      {isController && !readOnly && !isSubmitted && (
+                        <p className="text-xs text-muted-foreground italic pointer-events-none">Click to execute</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

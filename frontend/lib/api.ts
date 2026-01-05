@@ -185,6 +185,20 @@ export const api = {
     return response.json();
   },
 
+  async updateQuestion(token: string, questionId: string, question: any) {
+    const response = await fetch(`${API_URL}/quiz/questions/${questionId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify(question),
+    });
+    if (!response.ok) throw new Error('Failed to update question');
+    return response.json();
+  },
+
   async toggleQuestion(token: string, questionId: string, isEnabled: boolean) {
     const response = await fetch(`${API_URL}/quiz/questions/${questionId}/toggle`, {
       method: 'PATCH',

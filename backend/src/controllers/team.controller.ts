@@ -257,6 +257,14 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
       isCorrect = correctCount === totalCount;
 
       console.log(`True/False validation: ${correctCount}/${totalCount} correct, awarded ${pointsAwarded}/${question.points} points`);
+    } else if (question.questionType === 'multiple_choice') {
+      // For Multiple Choice, exact string match
+      // The answer sent is the key (A, B, C, D)
+      const submittedOption = typeof answer === 'string' ? answer.trim() : '';
+      const correctOption = question.correctAnswer?.trim() || '';
+
+      isCorrect = submittedOption.toLowerCase() === correctOption.toLowerCase();
+      pointsAwarded = isCorrect ? question.points : 0;
     } else {
       // For text answer questions
       isCorrect = answer.trim().toLowerCase() === question.correctAnswer?.trim().toLowerCase();

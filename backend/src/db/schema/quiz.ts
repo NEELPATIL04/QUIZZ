@@ -56,6 +56,7 @@ export const questions = pgTable('questions', {
   hints: text('hints'), // JSON array of hints
   points: integer('points').notNull().default(10),
   isEnabled: boolean('is_enabled').notNull().default(false), // Admin controls this
+  timeLimit: integer('time_limit'), // Time limit in seconds (null means no limit)
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

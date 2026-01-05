@@ -146,6 +146,10 @@ export default function QuestionPreviewPage() {
             readOnly={false}
             showAnswer={true}
           />
+        ) : question.questionType === 'js_engine_challenge' ? (
+          <div className="p-4 bg-yellow-100 text-yellow-800 rounded-lg">
+            JS Engine Challenge Preview Not Fully Implemented in this View
+          </div>
         ) : (
           <Card>
             <CardHeader>

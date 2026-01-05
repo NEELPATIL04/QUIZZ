@@ -7,13 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Lock, Unlock, Monitor, Eye, EyeOff, ExternalLink, Play, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Lock, Unlock, Monitor, Eye, EyeOff, ExternalLink, Play, AlertCircle, CheckCircle, Pencil } from 'lucide-react';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 import McqResultsTable from '@/components/McqResultsTable';
 
 export default function QuestionsPage() {
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
   const [showAnswers, setShowAnswers] = useState(false);
@@ -28,7 +28,10 @@ export default function QuestionsPage() {
     description: '',
     correctAnswer: '',
     points: 10,
+    timeLimit: '' as string | number,
   });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchQuestions();
@@ -266,20 +269,50 @@ export default function QuestionsPage() {
     }
   };
 
-  const handleCreateQuestion = async (e: React.FormEvent) => {
+  const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      await api.createQuestion(token, formData);
+      const payload = {
+        ...formData,
+        timeLimit: formData.timeLimit === '' ? null : Number(formData.timeLimit),
+      };
+
+      if (isEditing && editingId) {
+        await api.updateQuestion(token, editingId, payload);
+      } else {
+        await api.createQuestion(token, payload);
+      }
+
       setDialogOpen(false);
-      setFormData({ questionNumber: 1, title: '', description: '', correctAnswer: '', points: 10 });
+      resetForm();
       fetchQuestions();
     } catch (error) {
-      console.error('Error creating question:', error);
-      alert('Failed to create question');
+      console.error('Error saving question:', error);
+      alert('Failed to save question');
     }
+  };
+
+  const handleEditQuestion = (question: any) => {
+    setFormData({
+      questionNumber: question.questionNumber,
+      title: question.title,
+      description: question.description || '',
+      correctAnswer: question.correctAnswer || '',
+      points: question.points,
+      timeLimit: question.timeLimit || '',
+    });
+    setEditingId(question.id);
+    setIsEditing(true);
+    setDialogOpen(true);
+  };
+
+  const resetForm = () => {
+    setFormData({ questionNumber: 1, title: '', description: '', correctAnswer: '', points: 10, timeLimit: '' });
+    setIsEditing(false);
+    setEditingId(null);
   };
 
   const handleToggleQuestion = async (questionId: string, currentStatus: boolean) => {
@@ -427,69 +460,82 @@ export default function QuestionsPage() {
               </>
             )}
           </Button>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) resetForm();
+          }}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" />Add Question</Button>
+              <Button onClick={resetForm}><Plus className="h-4 w-4 mr-2" />Add Question</Button>
             </DialogTrigger>
             <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Question</DialogTitle>
-              <DialogDescription>Add a question to the quiz</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleCreateQuestion}>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="questionNumber">Question Number</Label>
-                  <Input
-                    id="questionNumber"
-                    type="number"
-                    value={formData.questionNumber}
-                    onChange={(e) => setFormData({ ...formData, questionNumber: parseInt(e.target.value) || 1 })}
-                    required
-                  />
+              <DialogHeader>
+                <DialogTitle>{isEditing ? 'Edit Question' : 'Create New Question'}</DialogTitle>
+                <DialogDescription>{isEditing ? 'Update the question details' : 'Add a question to the quiz'}</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSaveQuestion}>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="questionNumber">Question Number</Label>
+                    <Input
+                      id="questionNumber"
+                      type="number"
+                      value={formData.questionNumber}
+                      onChange={(e) => setFormData({ ...formData, questionNumber: parseInt(e.target.value) || 1 })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Title</Label>
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description (Optional)</Label>
+                    <Input
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="correctAnswer">Correct Answer</Label>
+                    <Input
+                      id="correctAnswer"
+                      value={formData.correctAnswer}
+                      onChange={(e) => setFormData({ ...formData, correctAnswer: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="points">Points</Label>
+                    <Input
+                      id="points"
+                      type="number"
+                      value={formData.points}
+                      onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value) || 10 })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="timeLimit">Time Limit (seconds, optional)</Label>
+                    <Input
+                      id="timeLimit"
+                      type="number"
+                      value={formData.timeLimit}
+                      onChange={(e) => setFormData({ ...formData, timeLimit: e.target.value })}
+                      placeholder="No limit"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description (Optional)</Label>
-                  <Input
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="correctAnswer">Correct Answer</Label>
-                  <Input
-                    id="correctAnswer"
-                    value={formData.correctAnswer}
-                    onChange={(e) => setFormData({ ...formData, correctAnswer: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="points">Points</Label>
-                  <Input
-                    id="points"
-                    type="number"
-                    value={formData.points}
-                    onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value) || 10 })}
-                    required
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                <Button type="submit">Create Question</Button>
-              </DialogFooter>
-            </form>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+                  <Button type="submit">{isEditing ? 'Update Question' : 'Create Question'}</Button>
+                </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
         </div>
@@ -630,168 +676,173 @@ export default function QuestionsPage() {
                   const isFirstMcq = isMcq && mcqQuestions.length > 0 && mcqQuestions[0].id === q.id;
 
                   return (
-                  <TableRow key={q.id} className={currentQuestionId === q.id ? 'bg-blue-50' : ''}>
-                    <TableCell className="font-medium">{q.questionNumber}</TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/dashboard/preview/${q.id}`}
-                        className="flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                      >
-                        {q.title}
-                        <Eye className="h-3 w-3" />
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        isMcq ? 'bg-purple-100 text-purple-800' :
-                        q.questionType === 'git_challenge' ? 'bg-blue-100 text-blue-800' :
-                        q.questionType === 'html_css_challenge' ? 'bg-green-100 text-green-800' :
-                        q.questionType === 'js_engine_challenge' ? 'bg-yellow-100 text-yellow-800' :
-                        q.questionType === 'broken_html_challenge' ? 'bg-emerald-100 text-emerald-800' :
-                        q.questionType === 'true_false_drag_drop' ? 'bg-cyan-100 text-cyan-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {isMcq ? 'MCQ Bidding' :
-                         q.questionType === 'git_challenge' ? 'Git Challenge' :
-                         q.questionType === 'html_css_challenge' ? 'HTML/CSS Challenge' :
-                         q.questionType === 'js_engine_challenge' ? 'JS Engine Challenge' :
-                         q.questionType === 'broken_html_challenge' ? 'Broken HTML Challenge' :
-                         q.questionType === 'true_false_drag_drop' ? 'True/False Drag Drop' :
-                         q.questionType || 'Standard'}
-                      </span>
-                    </TableCell>
-                    <TableCell>{q.points}</TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        q.isEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {q.isEnabled ? 'Enabled' : 'Disabled'}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {isMcq ? (
-                        <div className="flex flex-col gap-1.5">
-                          {/* For FIRST MCQ only: Enable/Disable Bid Round */}
-                          {isFirstMcq && (
-                            <>
-                              {timerState?.bidRoundEnabled ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDisableBidRoundForQuestion(q.id)}
-                                  className="bg-green-50 border-green-300 text-green-800 hover:bg-green-100 text-xs"
-                                >
-                                  ✅ Active (Click to Disable)
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleEnableBidRoundForQuestion(q.id)}
-                                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs"
-                                >
-                                  🎯 Enable Bid Round
-                                </Button>
-                              )}
+                    <TableRow key={q.id} className={currentQuestionId === q.id ? 'bg-blue-50' : ''}>
+                      <TableCell className="font-medium">{q.questionNumber}</TableCell>
+                      <TableCell>
+                        <Link
+                          href={`/dashboard/preview/${q.id}`}
+                          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                        >
+                          {q.title}
+                          <Eye className="h-3 w-3" />
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${isMcq ? 'bg-purple-100 text-purple-800' :
+                          q.questionType === 'git_challenge' ? 'bg-blue-100 text-blue-800' :
+                            q.questionType === 'html_css_challenge' ? 'bg-green-100 text-green-800' :
+                              q.questionType === 'js_engine_challenge' ? 'bg-yellow-100 text-yellow-800' :
+                                q.questionType === 'broken_html_challenge' ? 'bg-emerald-100 text-emerald-800' :
+                                  q.questionType === 'true_false_drag_drop' ? 'bg-cyan-100 text-cyan-800' :
+                                    'bg-gray-100 text-gray-800'
+                          }`}>
+                          {isMcq ? 'MCQ Bidding' :
+                            q.questionType === 'git_challenge' ? 'Git Challenge' :
+                              q.questionType === 'html_css_challenge' ? 'HTML/CSS Challenge' :
+                                q.questionType === 'js_engine_challenge' ? 'JS Engine Challenge' :
+                                  q.questionType === 'broken_html_challenge' ? 'Broken HTML Challenge' :
+                                    q.questionType === 'true_false_drag_drop' ? 'True/False Drag Drop' :
+                                      q.questionType || 'Standard'}
+                        </span>
+                      </TableCell>
+                      <TableCell>{q.points}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${q.isEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                          {q.isEnabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {isMcq ? (
+                          <div className="flex flex-col gap-1.5">
+                            {/* For FIRST MCQ only: Enable/Disable Bid Round */}
+                            {isFirstMcq && (
+                              <>
+                                {timerState?.bidRoundEnabled ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleDisableBidRoundForQuestion(q.id)}
+                                    className="bg-green-50 border-green-300 text-green-800 hover:bg-green-100 text-xs"
+                                  >
+                                    ✅ Active (Click to Disable)
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleEnableBidRoundForQuestion(q.id)}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                                  >
+                                    🎯 Enable Bid Round
+                                  </Button>
+                                )}
 
-                              {/* Start Timer - only show if bid round is enabled */}
-                              {timerState?.bidRoundEnabled && !timerState?.isRunning && !timerState?.biddingClosed && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleStartTimerForQuestion(q.id)}
-                                  className="bg-orange-600 hover:bg-orange-700 text-white text-xs"
-                                >
-                                  ⏱️ Start Timer
-                                </Button>
-                              )}
+                                {/* Start Timer - only show if bid round is enabled */}
+                                {timerState?.bidRoundEnabled && !timerState?.isRunning && !timerState?.biddingClosed && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleStartTimerForQuestion(q.id)}
+                                    className="bg-orange-600 hover:bg-orange-700 text-white text-xs"
+                                  >
+                                    ⏱️ Start Timer
+                                  </Button>
+                                )}
 
-                              {/* Timer Running Indicator */}
-                              {timerState?.isRunning && (
-                                <span className="text-xs text-orange-600 font-medium animate-pulse">
-                                  ⏱️ Timer: {timerState.timeRemaining}s
+                                {/* Timer Running Indicator */}
+                                {timerState?.isRunning && (
+                                  <span className="text-xs text-orange-600 font-medium animate-pulse">
+                                    ⏱️ Timer: {timerState.timeRemaining}s
+                                  </span>
+                                )}
+                              </>
+                            )}
+
+                            {/* For ALL MCQ: Bidding Closed - Waiting for Reveal */}
+                            {timerState?.biddingClosed && !timerState?.answerRevealed && !timerState?.isRunning && (
+                              <>
+                                <span className="text-xs text-yellow-600 font-medium">
+                                  🔒 Bidding Closed
                                 </span>
-                              )}
-                            </>
-                          )}
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleRevealAnswerForQuestion(q.id)}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
+                                >
+                                  🎊 Reveal Answer & Distribute Points
+                                </Button>
+                              </>
+                            )}
 
-                          {/* For ALL MCQ: Bidding Closed - Waiting for Reveal */}
-                          {timerState?.biddingClosed && !timerState?.answerRevealed && !timerState?.isRunning && (
-                            <>
-                              <span className="text-xs text-yellow-600 font-medium">
-                                🔒 Bidding Closed
+                            {/* For ALL MCQ: Answer Revealed Indicator */}
+                            {timerState?.answerRevealed && (
+                              <span className="text-xs text-blue-600 font-medium">
+                                ✨ Answer Revealed
                               </span>
+                            )}
+
+                            {/* For non-first MCQ: Just show Reveal Answer button if not revealed */}
+                            {!isFirstMcq && !timerState?.answerRevealed && (
                               <Button
                                 size="sm"
                                 onClick={() => handleRevealAnswerForQuestion(q.id)}
                                 className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
                               >
-                                🎊 Reveal Answer & Distribute Points
+                                🎊 Reveal Answer
                               </Button>
-                            </>
-                          )}
-
-                          {/* For ALL MCQ: Answer Revealed Indicator */}
-                          {timerState?.answerRevealed && (
-                            <span className="text-xs text-blue-600 font-medium">
-                              ✨ Answer Revealed
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {currentQuestionId === q.id ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 px-2.5 py-0.5 text-xs font-medium">
+                              <Monitor className="h-3 w-3 mr-1" />Current
                             </span>
-                          )}
-
-                          {/* For non-first MCQ: Just show Reveal Answer button if not revealed */}
-                          {!isFirstMcq && !timerState?.answerRevealed && (
                             <Button
+                              variant="outline"
                               size="sm"
-                              onClick={() => handleRevealAnswerForQuestion(q.id)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
+                              onClick={() => handleSetCurrentQuestion(null)}
                             >
-                              🎊 Reveal Answer
+                              Clear
                             </Button>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-xs">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {currentQuestionId === q.id ? (
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-800 px-2.5 py-0.5 text-xs font-medium">
-                            <Monitor className="h-3 w-3 mr-1" />Current
-                          </span>
+                          </div>
+                        ) : (
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleSetCurrentQuestion(null)}
+                            onClick={() => handleSetCurrentQuestion(q.id)}
                           >
-                            Clear
+                            Set as Current
                           </Button>
-                        </div>
-                      ) : (
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          onClick={() => handleSetCurrentQuestion(q.id)}
+                          onClick={() => handleToggleQuestion(q.id, q.isEnabled)}
                         >
-                          Set as Current
+                          {q.isEnabled ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
                         </Button>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleQuestion(q.id, q.isEnabled)}
-                      >
-                        {q.isEnabled ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteQuestion(q.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteQuestion(q.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditQuestion(q)}
+                        >
+                          <Pencil className="h-4 w-4 text-blue-600" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   );
                 })
               )}

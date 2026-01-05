@@ -76,7 +76,7 @@ export const getCurrentQuestion = async (req: Request, res: Response): Promise<v
 
     // If it's an MCQ bidding question, get timer state and bids
     let timerState = null;
-    let bids = [];
+    let bids: { id: string; teamId: string; selectedOption: string; bidAmount: number; teamNumber: number | null; teamName: string | null; }[] = [];
 
     if (question.questionType === 'mcq_bidding') {
       const [timer] = await db
