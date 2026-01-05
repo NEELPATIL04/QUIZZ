@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1767369347508,
+      "tag": "0000_wise_blue_shield",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1767374425974,
+      "tag": "0001_clean_firestar",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767375107962,
+      "tag": "0002_pale_captain_america",
+      "breakpoints": true
+    }
+  ]
+}

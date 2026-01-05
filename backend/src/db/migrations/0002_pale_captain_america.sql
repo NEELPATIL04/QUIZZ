@@ -1,0 +1,1 @@
+ALTER TABLE "quiz_config" ADD COLUMN "number_of_presenters" integer DEFAULT 1 NOT NULL;
