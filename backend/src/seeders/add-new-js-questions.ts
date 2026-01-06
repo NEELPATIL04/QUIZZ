@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 
 const newQuestions = [
     {
-        questionNumber: 6,
+        questionNumber: 106,
         questionType: 'multiple_choice' as const,
         title: 'JavaScript Array Map & Length Mutation',
         description: `\`\`\`javascript
@@ -29,7 +29,7 @@ console.log(res, arr);
         isEnabled: true,
     },
     {
-        questionNumber: 7,
+        questionNumber: 107,
         questionType: 'multiple_choice' as const,
         title: 'JavaScript Infinite Loop & Push',
         description: `\`\`\`javascript

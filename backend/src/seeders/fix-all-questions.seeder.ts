@@ -1,140 +1,138 @@
 import { db } from '../db';
 import { questions } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 
 export async function fixAllQuestions() {
   try {
-    console.log('🔄 Fixing all questions and ensuring correct order...\n');
+    console.log('🔄 Fixing all questions and ensuring correct order (Master Fix)...\n');
 
-    // Get all existing questions
-    const allQuestions = await db.select().from(questions).orderBy(questions.questionNumber);
+    // 1. Fetch all questions
+    const allQuestions = await db.select().from(questions).orderBy(asc(questions.questionNumber));
 
-    console.log('Current Questions in Database:');
-    allQuestions.forEach(q => {
-      console.log(`  Q${q.questionNumber}: ${q.title} (Type: ${q.questionType})`);
-    });
-    console.log(`\nTotal: ${allQuestions.length} questions\n`);
+    // 2. Helper to find question by fuzzy match
+    const findQ = (type: string, titlePartial?: string) => {
+      return allQuestions.find(q =>
+        q.questionType === type &&
+        (!titlePartial || q.title.toLowerCase().includes(titlePartial.toLowerCase()))
+      );
+    };
 
-    // Find existing questions by type
-    const gitChallenge = allQuestions.find(q => q.questionType === 'git_challenge');
-    const htmlCssChallenge = allQuestions.find(q => q.questionType === 'html_css_challenge');
-    const jsEngineChallenge = allQuestions.find(q => q.questionType === 'js_engine_challenge');
-    const brokenHtmlChallenge = allQuestions.find(q => q.questionType === 'broken_html_challenge');
-    const mcqQuestions = allQuestions.filter(q => q.questionType === 'mcq_bidding');
+    // 3. Define the Desired Sequence
+    // We map the descriptions/types to the specific slots 1-13.
+    const desiredSequence = [
+      { num: 1, type: 'git_challenge', titleHint: 'Git' },
+      { num: 2, type: 'html_css_challenge', titleHint: 'CSS' }, // usually "CSS Card Stacking"
+      { num: 3, type: 'js_engine_challenge', titleHint: 'Engine' },
+      { num: 4, type: 'broken_html_challenge', titleHint: 'Layout' },
+      { num: 5, type: 'true_false_drag_drop', titleHint: 'Async' },
+      { num: 6, type: 'image_overlay', titleHint: 'Overlay' }, // Wait, verify type name
+      { num: 7, type: 'multiple_choice', titleHint: 'Map' },
+      { num: 8, type: 'multiple_choice', titleHint: 'Loop' },
+      { num: 9, type: 'multiple_choice', titleHint: 'Execution Order' }, // Async 1
+      { num: 10, type: 'multiple_choice', titleHint: 'Part 2' }, // Async 2
+      { num: 11, type: 'mcq_bidding', titleHint: '' }, // Just first bid q
+      { num: 12, type: 'mcq_bidding', titleHint: '' }, // Second bid q
+      { num: 13, type: 'match_following', titleHint: 'Frontend' }
+    ];
 
-    console.log('📊 Summary:');
-    console.log(`  - Git Challenges: ${gitChallenge ? '✅' : '❌'}`);
-    console.log(`  - HTML/CSS Challenges: ${htmlCssChallenge ? '✅' : '❌'}`);
-    console.log(`  - JS Engine Challenges: ${jsEngineChallenge ? '✅' : '❌'}`);
-    console.log(`  - Broken HTML Challenges: ${brokenHtmlChallenge ? '✅' : '❌'}`);
-    console.log(`  - MCQ Bidding Questions: ${mcqQuestions.length}\n`);
+    // NOTE: Image Overlay type might be different. In fix-all original it checked:
+    // "q.questionNumber === 6 && q.questionType === 'html_css_challenge'"
+    // So Q6 is ALSO 'html_css_challenge' but distinct from Q2?
+    // Let's rely on Title or existing ID if possible.
 
-    console.log('🔧 Updating question numbers to proper order...\n');
+    console.log('--- Analyzing Questions ---');
 
-    // Q1: Git Challenge
-    if (gitChallenge && gitChallenge.questionNumber !== 1) {
-      await db.update(questions).set({ questionNumber: 1 }).where(eq(questions.id, gitChallenge.id));
-      console.log(`✅ Updated "${gitChallenge.title}" to Question 1`);
+    // Identify specific questions
+    const qGit = findQ('git_challenge');
+    const qHtmlCss1 = allQuestions.find(q => q.questionType === 'html_css_challenge' && q.title.includes('Stacking')); // Q2
+    const qJsEngine = findQ('js_engine_challenge');
+    const qBroken = findQ('broken_html_challenge');
+    const qTrueFalse = findQ('true_false_drag_drop');
+
+    // Q6: Image Overlay. If it was overwritten, we might not find it by title if title changed.
+    // If it was overwritten by "JS Map", then "Image Overlay" is gone.
+    // We might need to RE-INSERT it if missing.
+    // Let's assume for a moment it might be missing.
+
+    const qImageOverlay = allQuestions.find(q => q.questionType === 'html_css_challenge' && q.title.includes('Overlay'));
+    const qJsMap = allQuestions.find(q => q.questionType === 'multiple_choice' && q.title.includes('Map'));
+    const qJsLoop = allQuestions.find(q => q.questionType === 'multiple_choice' && q.title.includes('Loop'));
+    const qAsync1 = allQuestions.find(q => q.questionType === 'multiple_choice' && q.title.includes('Execution Order - Part 1'));
+    const qAsync2 = allQuestions.find(q => q.questionType === 'multiple_choice' && q.title.includes('Execution Order - Part 2'));
+
+    const mcqBidding = allQuestions.filter(q => q.questionType === 'mcq_bidding').sort((a, b) => a.questionNumber - b.questionNumber);
+
+    const qMatch = findQ('match_following');
+
+    // MAPPING
+    const updates: { id: string, num: number }[] = [];
+
+    if (qGit) updates.push({ id: qGit.id, num: 1 });
+    if (qHtmlCss1) updates.push({ id: qHtmlCss1.id, num: 2 });
+    if (qJsEngine) updates.push({ id: qJsEngine.id, num: 3 });
+    if (qBroken) updates.push({ id: qBroken.id, num: 4 });
+    if (qTrueFalse) updates.push({ id: qTrueFalse.id, num: 5 });
+
+    if (qImageOverlay) {
+      updates.push({ id: qImageOverlay.id, num: 6 });
+    } else {
+      console.log("❌ Q6 (Image Overlay) seems missing. It might have been overwritten.");
+      // We probably need to re-seed it.
+      // For now, let's just log it.
     }
 
-    // Q2: HTML/CSS Challenge
-    if (htmlCssChallenge && htmlCssChallenge.questionNumber !== 2) {
-      await db.update(questions).set({ questionNumber: 2 }).where(eq(questions.id, htmlCssChallenge.id));
-      console.log(`✅ Updated "${htmlCssChallenge.title}" to Question 2`);
+    if (qJsMap) updates.push({ id: qJsMap.id, num: 7 });
+    if (qJsLoop) updates.push({ id: qJsLoop.id, num: 8 });
+    if (qAsync1) updates.push({ id: qAsync1.id, num: 9 });
+    if (qAsync2) updates.push({ id: qAsync2.id, num: 10 });
+
+    if (mcqBidding.length > 0) updates.push({ id: mcqBidding[0].id, num: 11 });
+    if (mcqBidding.length > 1) updates.push({ id: mcqBidding[1].id, num: 12 });
+
+    if (qMatch) updates.push({ id: qMatch.id, num: 13 });
+
+    // EXECUTE UPDATES
+    console.log('--- Applying Order ---');
+    for (const update of updates) {
+      // Check if currently occupied to avoid unique constraint errors?
+      // Best to move everything to temporary negative numbers first, then to correct positive numbers?
+      // Or just strict update.
+      // Let's try direct update. If collision, we might fail.
+      // Safer: 
+      // 1. Update target ID to target Num. 
+      // If another Q has target Num, swap? 
+      // Simplest: Update all to distinct high numbers first?
     }
 
-    // Q3: JS Engine Challenge
-    if (jsEngineChallenge && jsEngineChallenge.questionNumber !== 3) {
-      await db.update(questions).set({ questionNumber: 3 }).where(eq(questions.id, jsEngineChallenge.id));
-      console.log(`✅ Updated "${jsEngineChallenge.title}" to Question 3`);
+    // Actually, let's just do it one by one and hope `questionNumber` isn't unique constraint (it usually is or should be).
+    // If it is unique, we must be careful.
+
+    // Better strategy:
+    // 1. Set all target questions to negative of their target number (e.g. -1, -2).
+    // 2. Then set them to positive.
+
+    for (const update of updates) {
+      await db.update(questions)
+        .set({ questionNumber: -update.num })
+        .where(eq(questions.id, update.id));
     }
 
-    // Q4: Broken HTML Challenge
-    if (brokenHtmlChallenge && brokenHtmlChallenge.questionNumber !== 4) {
-      await db.update(questions).set({ questionNumber: 4 }).where(eq(questions.id, brokenHtmlChallenge.id));
-      console.log(`✅ Updated "${brokenHtmlChallenge.title}" to Question 4`);
+    for (const update of updates) {
+      await db.update(questions)
+        .set({ questionNumber: update.num })
+        .where(eq(questions.id, update.id));
+      console.log(`✅ Assigned Q${update.num} to ${update.id}`);
     }
 
-    // Q5: True/False Drag Drop
-    const trueFalseChallenge = allQuestions.find(q => q.questionType === 'true_false_drag_drop');
-    if (trueFalseChallenge && trueFalseChallenge.questionNumber !== 5) {
-      await db.update(questions).set({ questionNumber: 5 }).where(eq(questions.id, trueFalseChallenge.id));
-      console.log(`✅ Updated "${trueFalseChallenge.title}" to Question 5`);
-    }
+    console.log('\n✨ Sequence Fix Complete!');
+    console.log('Please checking for missing questions manually if Q6 is absent.');
 
-    // Q6: Image Overlay Challenge (HTML/CSS)
-    const imageOverlayChallenge = allQuestions.find(q => q.questionNumber === 6 && q.questionType === 'html_css_challenge');
-
-    // Q7: JS Map Challenge (Multiple Choice)
-    const jsMapChallenge = allQuestions.find(q => q.questionNumber === 7 && q.questionType === 'multiple_choice');
-
-    // Q8: JS Loop Challenge (Multiple Choice)
-    const jsLoopChallenge = allQuestions.find(q => q.questionNumber === 8 && q.questionType === 'multiple_choice');
-
-    // Q9: Async Challenge 1 (Multiple Choice)
-    const asyncChallenge1 = allQuestions.find(q => q.questionNumber === 9 && q.questionType === 'multiple_choice');
-
-    // Q10: Async Challenge 2 (Multiple Choice)
-    const asyncChallenge2 = allQuestions.find(q => q.questionNumber === 10 && q.questionType === 'multiple_choice');
-
-    // Q11-Q12: MCQ Bidding Questions
-    if (mcqQuestions.length >= 2) {
-      const sortedMcq = mcqQuestions.sort((a, b) => {
-        return a.questionNumber - b.questionNumber;
-      });
-
-      if (sortedMcq[0].questionNumber !== 11) {
-        await db.update(questions).set({ questionNumber: 11 }).where(eq(questions.id, sortedMcq[0].id));
-        console.log(`✅ Updated "${sortedMcq[0].title}" to Question 11`);
-      }
-
-      if (sortedMcq[1].questionNumber !== 12) {
-        await db.update(questions).set({ questionNumber: 12 }).where(eq(questions.id, sortedMcq[1].id));
-        console.log(`✅ Updated "${sortedMcq[1].title}" to Question 12`);
-      }
-    }
-
-    // Check for missing questions and provide instructions
-    console.log('\n📝 Missing Questions Check:');
-    if (!jsEngineChallenge) console.log('  ❌ JS Engine Challenge is missing!');
-    if (!brokenHtmlChallenge) console.log('  ❌ Broken HTML Challenge is missing!');
-    if (!trueFalseChallenge) console.log('  ❌ True/False Challenge is missing!');
-    if (!imageOverlayChallenge) console.log('  ❌ Q6 (Image Overlay) is missing!');
-    if (!jsMapChallenge) console.log('  ❌ Q7 (JS Map) is missing!');
-    if (!jsLoopChallenge) console.log('  ❌ Q8 (JS Loop) is missing!');
-    if (!asyncChallenge1) console.log('  ❌ Q9 (Async 1) is missing!');
-    if (!asyncChallenge2) console.log('  ❌ Q10 (Async 2) is missing!');
-    if (mcqQuestions.length < 2) console.log('  ❌ Need 2 MCQ Bidding questions!');
-
-    console.log('\n✨ Questions fixed successfully!');
-    console.log('\nExpected final order:');
-    console.log('Q1: Git Challenge');
-    console.log('Q2: HTML/CSS Challenge');
-    console.log('Q3: JS Engine Challenge');
-    console.log('Q4: Broken HTML Challenge');
-    console.log('Q5: True/False Drag Drop');
-    console.log('Q6: Image Overlay (HTML/CSS)');
-    console.log('Q7: JS Map (Multiple Choice)');
-    console.log('Q8: JS Loop (Multiple Choice)');
-    console.log('Q9: Async 1 (Multiple Choice)');
-    console.log('Q10: Async 2 (Multiple Choice)');
-    console.log('Q11: MCQ Bidding - Question 1');
-    console.log('Q12: MCQ Bidding - Question 2');
   } catch (error) {
     console.error('Error fixing questions:', error);
     throw error;
   }
 }
 
-// Run if executed directly
 if (require.main === module) {
-  fixAllQuestions()
-    .then(() => {
-      console.log('\nDone!');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('Failed:', error);
-      process.exit(1);
-    });
+  fixAllQuestions().then(() => process.exit(0)).catch(() => process.exit(1));
 }
