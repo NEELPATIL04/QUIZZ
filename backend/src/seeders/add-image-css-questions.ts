@@ -15,7 +15,7 @@ async function seed() {
 
     await db.insert(questions).values({
         id: uuidv4(),
-        questionNumber: 13,
+        questionNumber: 115,
         questionType: 'multiple_choice',
         title: 'CSS Transform & Positioning',
         description: `
@@ -39,7 +39,7 @@ Which CSS properties are primarily responsible for the rotated, stacked card eff
 
     await db.insert(questions).values({
         id: uuidv4(),
-        questionNumber: 14,
+        questionNumber: 116,
         questionType: 'multiple_choice',
         title: 'Perfect Centering',
         description: `
@@ -69,7 +69,7 @@ Which code snippet creates the layout where the blue box is perfectly centered i
 
     await db.insert(questions).values({
         id: uuidv4(),
-        questionNumber: 15,
+        questionNumber: 117,
         questionType: 'multiple_choice',
         title: 'Navbar Layout',
         description: `
