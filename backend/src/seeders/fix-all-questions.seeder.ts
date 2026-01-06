@@ -49,7 +49,7 @@ export async function fixAllQuestions() {
     console.log('1. Shifting ALL questions to temporary negative IDs...');
     for (const [index, q] of allQuestions.entries()) {
       await db.update(questions)
-        .set({ questionNumber: -1000 - index })
+        .set({ questionNumber: -50000 - index })
         .where(eq(questions.id, q.id));
     }
 
