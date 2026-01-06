@@ -25,7 +25,9 @@
     "seed:new-js": "tsx src/seeders/add-new-js-questions.ts",
     "seed:image-overlay": "tsx src/seeders/add-image-overlay-question.ts",
     "seed:async": "tsx src/seeders/add-async-questions.ts",
-    "seed:all-questions": "npm run seed:git-question && npm run seed:htmlcss && npm run seed:js-engine && npm run seed:broken-html && npm run seed:true-false && npm run seed:mcq && npm run seed:new-js && npm run seed:image-overlay && npm run seed:async && npm run seed:match-following && npm run seed:fix-all"
+    "seed:async-multi": "tsx src/seeders/add-async-multi-question.ts",
+    "seed:css-images": "tsx src/seeders/add-image-css-questions.ts",
+    "seed:all-questions": "npm run seed:git-question && npm run seed:htmlcss && npm run seed:js-engine && npm run seed:broken-html && npm run seed:true-false && npm run seed:mcq && npm run seed:new-js && npm run seed:image-overlay && npm run seed:async && npm run seed:match-following && npm run seed:async-multi && npm run seed:css-images && npm run seed:fix-all"
   },
   "keywords": [],
   "author": "",

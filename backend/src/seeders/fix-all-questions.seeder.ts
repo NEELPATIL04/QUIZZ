@@ -18,107 +18,88 @@ export async function fixAllQuestions() {
     };
 
     // 3. Define the Desired Sequence
-    // We map the descriptions/types to the specific slots 1-13.
-    const desiredSequence = [
-      { num: 1, type: 'git_challenge', titleHint: 'Git' },
-      { num: 2, type: 'html_css_challenge', titleHint: 'CSS' }, // usually "CSS Card Stacking"
-      { num: 3, type: 'js_engine_challenge', titleHint: 'Engine' },
-      { num: 4, type: 'broken_html_challenge', titleHint: 'Layout' },
-      { num: 5, type: 'true_false_drag_drop', titleHint: 'Async' },
-      { num: 6, type: 'image_overlay', titleHint: 'Overlay' }, // Wait, verify type name
-      { num: 7, type: 'multiple_choice', titleHint: 'Map' },
-      { num: 8, type: 'multiple_choice', titleHint: 'Loop' },
-      { num: 9, type: 'multiple_choice', titleHint: 'Execution Order' }, // Async 1
-      { num: 10, type: 'multiple_choice', titleHint: 'Part 2' }, // Async 2
-      { num: 11, type: 'mcq_bidding', titleHint: '' }, // Just first bid q
-      { num: 12, type: 'mcq_bidding', titleHint: '' }, // Second bid q
-      { num: 13, type: 'match_following', titleHint: 'Frontend' }
+    // We map the descriptions/types to the specific slots 1-17.
+    const targets = [
+      { num: 1, type: 'git_challenge', titleKey: 'Git' },
+      { num: 2, type: 'html_css_challenge', titleKey: 'Bottom Right' },
+      { num: 3, type: 'js_engine_challenge', titleKey: 'Engine' },
+      { num: 4, type: 'broken_html_challenge', titleKey: 'Layout' },
+      { num: 5, type: 'true_false_drag_drop', titleKey: 'Async' },
+      // Q6: Image Overlay (CSS Stacking)
+      { num: 6, type: 'html_css_challenge', titleKey: 'Stacking' },
+      { num: 7, type: 'multiple_choice', titleKey: 'Map' },
+      { num: 8, type: 'multiple_choice', titleKey: 'Loop' },
+      { num: 9, type: 'multiple_choice', titleKey: 'Execution Order - Part 1' },
+      { num: 10, type: 'multiple_choice', titleKey: 'Execution Order - Part 2' },
+
+      // MCQ Bids - Special handling (sort by number usually, but let's try title if possible or just type)
+      // Actually we have Titles: "Execution Sequence" (Q11 target?) and "Call Stack" (Q12 target?)
+      { num: 11, type: 'mcq_bidding', titleKey: 'Execution Sequence' },
+      { num: 12, type: 'mcq_bidding', titleKey: 'Call Stack' },
+
+      { num: 13, type: 'match_following', titleKey: 'Frontend' },
+      { num: 14, type: 'multiple_choice', titleKey: 'Promise Execution Flow' }, // Async Multi
+      { num: 15, type: 'multiple_choice', titleKey: 'Transform' },
+      { num: 16, type: 'multiple_choice', titleKey: 'Perfect Centering' },
+      { num: 17, type: 'multiple_choice', titleKey: 'Navbar Layout' }
     ];
 
-    // NOTE: Image Overlay type might be different. In fix-all original it checked:
-    // "q.questionNumber === 6 && q.questionType === 'html_css_challenge'"
-    // So Q6 is ALSO 'html_css_challenge' but distinct from Q2?
-    // Let's rely on Title or existing ID if possible.
+    console.log('--- Applying Order (Safe Mode + Cleanup) ---');
 
-    console.log('--- Analyzing Questions ---');
-
-    // Identify specific questions
-    const qGit = findQ('git_challenge');
-    const qHtmlCss1 = allQuestions.find(q => q.questionType === 'html_css_challenge' && q.title.includes('Stacking')); // Q2
-    const qJsEngine = findQ('js_engine_challenge');
-    const qBroken = findQ('broken_html_challenge');
-    const qTrueFalse = findQ('true_false_drag_drop');
-
-    // Q6: Image Overlay. If it was overwritten, we might not find it by title if title changed.
-    // If it was overwritten by "JS Map", then "Image Overlay" is gone.
-    // We might need to RE-INSERT it if missing.
-    // Let's assume for a moment it might be missing.
-
-    const qImageOverlay = allQuestions.find(q => q.questionType === 'html_css_challenge' && q.title.includes('Overlay'));
-    const qJsMap = allQuestions.find(q => q.questionType === 'multiple_choice' && q.title.includes('Map'));
-    const qJsLoop = allQuestions.find(q => q.questionType === 'multiple_choice' && q.title.includes('Loop'));
-    const qAsync1 = allQuestions.find(q => q.questionType === 'multiple_choice' && q.title.includes('Execution Order - Part 1'));
-    const qAsync2 = allQuestions.find(q => q.questionType === 'multiple_choice' && q.title.includes('Execution Order - Part 2'));
-
-    const mcqBidding = allQuestions.filter(q => q.questionType === 'mcq_bidding').sort((a, b) => a.questionNumber - b.questionNumber);
-
-    const qMatch = findQ('match_following');
-
-    // MAPPING
-    const updates: { id: string, num: number }[] = [];
-
-    if (qGit) updates.push({ id: qGit.id, num: 1 });
-    if (qHtmlCss1) updates.push({ id: qHtmlCss1.id, num: 2 });
-    if (qJsEngine) updates.push({ id: qJsEngine.id, num: 3 });
-    if (qBroken) updates.push({ id: qBroken.id, num: 4 });
-    if (qTrueFalse) updates.push({ id: qTrueFalse.id, num: 5 });
-
-    if (qImageOverlay) {
-      updates.push({ id: qImageOverlay.id, num: 6 });
-    } else {
-      console.log("❌ Q6 (Image Overlay) seems missing. It might have been overwritten.");
-      // We probably need to re-seed it.
-      // For now, let's just log it.
-    }
-
-    if (qJsMap) updates.push({ id: qJsMap.id, num: 7 });
-    if (qJsLoop) updates.push({ id: qJsLoop.id, num: 8 });
-    if (qAsync1) updates.push({ id: qAsync1.id, num: 9 });
-    if (qAsync2) updates.push({ id: qAsync2.id, num: 10 });
-
-    if (mcqBidding.length > 0) updates.push({ id: mcqBidding[0].id, num: 11 });
-    if (mcqBidding.length > 1) updates.push({ id: mcqBidding[1].id, num: 12 });
-
-    if (qMatch) updates.push({ id: qMatch.id, num: 13 });
-
-    // EXECUTE UPDATES
-    console.log('--- Applying Order (Safe Mode) ---');
-
-    // 1. Shift ALL questions to a safe numbering space to avoid collisions
-    // We use -1000 - index
+    console.log('1. Shifting ALL questions to temporary negative IDs...');
     for (const [index, q] of allQuestions.entries()) {
       await db.update(questions)
         .set({ questionNumber: -1000 - index })
         .where(eq(questions.id, q.id));
     }
-    console.log('✅ Temporary shift complete. Reassigning...');
 
-    // 2. Assign correct numbers
-    for (const update of updates) {
+    // Refetch to get negative IDs
+    const shiftedQuestions = await db.select().from(questions);
+
+    console.log('2. Assigning correct numbers and removing duplicates...');
+
+    for (const target of targets) {
+      // Find candidates
+      const candidates = shiftedQuestions.filter(q =>
+        q.questionType === target.type &&
+        q.title.toLowerCase().includes(target.titleKey.toLowerCase())
+      );
+
+      if (candidates.length === 0) {
+        console.log(`❌ Missing Q${target.num} (${target.titleKey})`);
+        continue;
+      }
+
+      // Pick winner (first one)
+      const winner = candidates[0];
       await db.update(questions)
-        .set({ questionNumber: update.num })
-        .where(eq(questions.id, update.id));
-      console.log(`✅ Assigned Q${update.num} to ${update.id}`);
+        .set({ questionNumber: target.num })
+        .where(eq(questions.id, winner.id));
+
+      console.log(`✅ Assigned Q${target.num}: "${winner.title}"`);
+
+      // Delete losers
+      if (candidates.length > 1) {
+        const losers = candidates.slice(1);
+        console.log(`   🗑️  Deleting ${losers.length} duplicate(s) for Q${target.num}...`);
+        for (const loser of losers) {
+          await db.delete(questions).where(eq(questions.id, loser.id));
+        }
+      }
     }
 
-    // 3. Log leftovers
+    // 3. Cleanup any remaining negatives (questions not in our target list)
     const leftovers = await db.select().from(questions).where(sql`question_number < 0`);
     if (leftovers.length > 0) {
-      console.log(`\n⚠️  ${leftovers.length} duplicate/unused questions remain with negative IDs:`);
-      leftovers.forEach(l => console.log(`  ID: ${l.id} (${l.title}) -> Q${l.questionNumber}`));
+      console.log(`\n⚠️  Deleting ${leftovers.length} unmapped/leftover questions:`);
+      for (const l of leftovers) {
+        console.log(`   🗑️  ID: ${l.id} (${l.title})`);
+        await db.delete(questions).where(eq(questions.id, l.id));
+      }
     }
 
-    console.log('\n✨ Sequence Fix Complete!');
+    console.log('\n✨ Sequence Fix & Cleanup Complete!');
+    console.log('Total Questions should now be: ' + targets.length);
 
   } catch (error) {
     console.error('Error fixing questions:', error);
@@ -129,3 +110,4 @@ export async function fixAllQuestions() {
 if (require.main === module) {
   fixAllQuestions().then(() => process.exit(0)).catch(() => process.exit(1));
 }
+```
