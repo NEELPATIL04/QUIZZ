@@ -21,7 +21,9 @@
     "seed:mcq": "tsx src/seeders/mcq-questions.seeder.ts",
     "seed:fix-all": "tsx src/seeders/fix-all-questions.seeder.ts",
     "seed:enable-all": "tsx src/seeders/enable-all-questions.seeder.ts",
-    "seed:all-questions": "npm run seed:git-question && npm run seed:htmlcss && npm run seed:js-engine && npm run seed:broken-html && npm run seed:true-false && npm run seed:mcq && npm run seed:fix-all"
+    "seed:match-following": "tsx src/seeders/add-match-following-question.ts",
+    "seed:new-js": "tsx src/seeders/add-new-js-questions.ts",
+    "seed:all-questions": "npm run seed:git-question && npm run seed:htmlcss && npm run seed:js-engine && npm run seed:broken-html && npm run seed:true-false && npm run seed:mcq && npm run seed:fix-all && npm run seed:match-following && npm run seed:new-js"
   },
   "keywords": [],
   "author": "",
