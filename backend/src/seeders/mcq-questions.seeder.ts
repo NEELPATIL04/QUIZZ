@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 
 const mcqQuestionsData = [
   {
-    questionNumber: 6,
+    questionNumber: 204,
     questionType: 'mcq_bidding' as const,
     title: 'JavaScript Engine Execution Sequence',
     description: 'When JavaScript code is executed by the JS engine, which sequence correctly represents how the engine processes the code?',
@@ -19,7 +19,7 @@ const mcqQuestionsData = [
     isEnabled: false,
   },
   {
-    questionNumber: 7,
+    questionNumber: 205,
     questionType: 'mcq_bidding' as const,
     title: 'JavaScript Call Stack',
     description: 'Which statement about the JavaScript Call Stack is TRUE?',

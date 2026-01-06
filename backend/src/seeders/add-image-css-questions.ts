@@ -5,23 +5,41 @@ import { v4 as uuidv4 } from 'uuid';
 async function seed() {
     console.log('Seeding 3 Image-Based CSS questions...');
 
-    // Q13: Transform Cards
+    // Q13: Advanced Grid Areas (Temp ID 201)
     const q13Options = [
-        { key: "A", text: "transform: rotate(15deg); position: absolute;" },
-        { key: "B", text: "display: flex; flex-direction: column;" },
-        { key: "C", text: "float: left; clear: both;" },
-        { key: "D", text: "grid-template-columns: repeat(3, 1fr);" }
+        {
+            key: "A", text: `grid-template-areas: 
+  "header header"
+  "sidebar main"
+  "footer footer";` },
+        {
+            key: "B", text: `grid-template-areas: 
+  "header sidebar"
+  "main main"
+  "footer footer";` },
+        {
+            key: "C", text: `display: grid;
+  grid-columns: 1fr 2fr;
+  grid-rows: auto 1fr auto;` },
+        {
+            key: "D", text: `grid-template-areas: 
+  "header"
+  "sidebar main"
+  "footer";` }
     ];
 
     await db.insert(questions).values({
         id: uuidv4(),
-        questionNumber: 115,
+        questionNumber: 201,
         questionType: 'multiple_choice',
-        title: 'CSS Transform & Positioning',
+        title: 'CSS Grid Template Areas',
         description: `
-![CSS Transform Demo](/images/quiz/css_transform_cards.png)
+![Grid Layout](/images/quiz/css_advanced_grid_areas.png)
 
-Which CSS properties are primarily responsible for the rotated, stacked card effect shown above?
+Study the layout above which consists of 3 rows and 2 columns.
+The **Header** and **Footer** span both columns.
+
+Which CSS \`grid-template-areas\` definition exactly matches this visual structure?
     `.trim(),
         options: JSON.stringify(q13Options),
         correctAnswer: "A",
@@ -29,64 +47,57 @@ Which CSS properties are primarily responsible for the rotated, stacked card eff
         isEnabled: true,
     });
 
-    // Q14: Flex Center
+    // Q14: Advanced Pseudo-Class Selection (Temp ID 202)
     const q14Options = [
-        { key: "A", text: "text-align: center; vertical-align: middle;" },
-        { key: "B", text: "display: flex; justify-content: center; align-items: center;" },
-        { key: "C", text: "float: center; position: relative;" },
-        { key: "D", text: "margin: 0 auto; display: block;" }
+        { key: "A", text: ":nth-child(3n)" },
+        { key: "B", text: ":nth-child(2n + 1)" },
+        { key: "C", text: ":nth-child(3n + 1)" },
+        { key: "D", text: ":nth-of-type(odd)" }
     ];
 
     await db.insert(questions).values({
         id: uuidv4(),
-        questionNumber: 116,
+        questionNumber: 202,
         questionType: 'multiple_choice',
-        title: 'Perfect Centering',
+        title: 'Advanced Pseudo-Class Selection',
         description: `
-![CSS Flex Center](/images/quiz/css_flex_center.png)
+![Nth Child Pattern](/images/quiz/css_advanced_nth_child.png)
 
-Which code snippet creates the layout where the blue box is perfectly centered inside the grey container?
+In a list of 10 items, the items at indices **1, 4, 7, 10** are selected (filled black circles).
 
-\`\`\`css
-.container {
-  /* What goes here? */
-}
-\`\`\`
+Which pseudo-class selector formula produces this exact sequence?
     `.trim(),
         options: JSON.stringify(q14Options),
-        correctAnswer: "B",
+        correctAnswer: "C",
         points: 100,
         isEnabled: true,
     });
 
-    // Q15: Navbar Space Between
+    // Q15: The Stacking Context Trap (Temp ID 203)
     const q15Options = [
-        { key: "A", text: "justify-content: flex-start; gap: 50px;" },
-        { key: "B", text: "justify-content: space-between;" },
-        { key: "C", text: "align-content: stretch;" },
-        { key: "D", text: "flex-direction: column-reverse;" }
+        { key: "A", text: "The Blue Card has `opacity: 0.9` which forces it behind." },
+        { key: "B", text: "The Red Card has `position: fixed` which always wins over relative." },
+        { key: "C", text: "Z-index is ignored because Flexbox is not used." },
+        { key: "D", text: "The Blue Card is trapped in the Grey Card's lower Stacking Context." }
     ];
 
     await db.insert(questions).values({
         id: uuidv4(),
-        questionNumber: 117,
+        questionNumber: 203,
         questionType: 'multiple_choice',
-        title: 'Navbar Layout',
+        title: 'The Stacking Context Trap',
         description: `
-![CSS Navbar](/images/quiz/css_flex_navbar.png)
+![Stacking Context](/images/quiz/css_advanced_stacking_context.png)
 
-Review the navigation bar design above. Which Flexbox property aligns the Logo to the far left and the Links to the far right with empty space in between?
+**Scenario:**
+1. **Grey Card** (Parent of Blue) has \`z-index: 1\`.
+2. **Red Card** (Sibling of Grey) has \`z-index: 2\`.
+3. **Blue Card** (Child of Grey) has \`z-index: 999\`.
 
-\`\`\`css
-.navbar {
-  display: flex;
-  /* ??? */
-  align-items: center;
-}
-\`\`\`
+Despite having the highest z-index (999), the **Blue Card** still appears **BEHIND** the **Red Card**. Why?
     `.trim(),
         options: JSON.stringify(q15Options),
-        correctAnswer: "B",
+        correctAnswer: "D",
         points: 100,
         isEnabled: true,
     });

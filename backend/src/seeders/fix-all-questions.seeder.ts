@@ -32,16 +32,17 @@ export async function fixAllQuestions() {
       { num: 9, type: 'multiple_choice', titleKey: 'Execution Order - Part 1' },
       { num: 10, type: 'multiple_choice', titleKey: 'Execution Order - Part 2' },
 
-      // MCQ Bids - Special handling (sort by number usually, but let's try title if possible or just type)
-      // Actually we have Titles: "Execution Sequence" (Q11 target?) and "Call Stack" (Q12 target?)
-      { num: 11, type: 'mcq_bidding', titleKey: 'Execution Sequence' },
-      { num: 12, type: 'mcq_bidding', titleKey: 'Call Stack' },
+      { num: 11, type: 'match_following', titleKey: 'Match-Up' },
+      { num: 12, type: 'multiple_choice', titleKey: 'Promise Execution Flow' }, // Async Multi (User's choice)
 
-      { num: 13, type: 'match_following', titleKey: 'Frontend' },
-      { num: 14, type: 'multiple_choice', titleKey: 'Promise Execution Flow' }, // Async Multi
-      { num: 15, type: 'multiple_choice', titleKey: 'Transform' },
-      { num: 16, type: 'multiple_choice', titleKey: 'Perfect Centering' },
-      { num: 17, type: 'multiple_choice', titleKey: 'Navbar Layout' }
+      // The new Advanced CSS questions
+      { num: 13, type: 'multiple_choice', titleKey: 'Grid Template Areas' },
+      { num: 14, type: 'multiple_choice', titleKey: 'Pseudo-Class' },
+      { num: 15, type: 'multiple_choice', titleKey: 'Stacking Context' },
+
+      // MCQ Bidding (moved to end as per sequence)
+      { num: 16, type: 'mcq_bidding', titleKey: 'Execution Sequence' },
+      { num: 17, type: 'mcq_bidding', titleKey: 'Call Stack' }
     ];
 
     console.log('--- Applying Order (Safe Mode + Cleanup) ---');

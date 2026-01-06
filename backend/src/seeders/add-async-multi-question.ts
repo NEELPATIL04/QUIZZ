@@ -33,7 +33,7 @@ async function seed() {
 
   await db.insert(questions).values({
     id: uuidv4(),
-    questionNumber: 114,
+    questionNumber: 200,
     questionType: 'multiple_choice',
     title: 'Async/Promise Execution Flow',
     description: `
