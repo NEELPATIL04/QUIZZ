@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Users, LogOut, User, Settings, ListChecks, Trophy } from 'lucide-react';
+import { Home, Users, LogOut, User, Settings, ListChecks, Trophy, BarChart2, Calculator } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -96,6 +96,22 @@ export function AppSidebar() {
                   <Link href="/dashboard/questions">
                     <ListChecks className="h-4 w-4" />
                     <span>Questions</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/dashboard/question-results">
+                    <BarChart2 className="h-4 w-4" />
+                    <span>Question Results</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/dashboard/points-manager">
+                    <Calculator className="h-4 w-4" />
+                    <span>Points Manager</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

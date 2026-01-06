@@ -10,11 +10,33 @@ export const getPublicTeams = async (req: Request, res: Response): Promise<void>
       id: teams.id,
       teamNumber: teams.teamNumber,
       teamName: teams.teamName,
+      score: teams.score,
     }).from(teams);
 
     res.json(allTeams);
   } catch (error) {
     console.error('Get public teams error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Get public scoreboard
+export const getPublicScoreboard = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const scoreboard = await db
+      .select({
+        teamNumber: teams.teamNumber,
+        teamName: teams.teamName,
+        score: teams.score,
+      })
+      .from(teams);
+
+    // Sort by score descending
+    scoreboard.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+    res.json(scoreboard);
+  } catch (error) {
+    console.error('Get scoreboard error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -258,13 +280,64 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
 
       console.log(`True/False validation: ${correctCount}/${totalCount} correct, awarded ${pointsAwarded}/${question.points} points`);
     } else if (question.questionType === 'multiple_choice') {
-      // For Multiple Choice, exact string match
-      // The answer sent is the key (A, B, C, D)
-      const submittedOption = typeof answer === 'string' ? answer.trim() : '';
-      const correctOption = question.correctAnswer?.trim() || '';
+      // Check if correct answer is a JSON array (multi-select)
+      let correctOptions: string[] = [];
+      try {
+        const parsed = JSON.parse(question.correctAnswer || '[]');
+        if (Array.isArray(parsed)) {
+          correctOptions = parsed.map(o => o.trim().toUpperCase());
+        } else {
+          correctOptions = [question.correctAnswer?.trim().toUpperCase() || ''];
+        }
+      } catch (e) {
+        // Fallback for simple string answer
+        correctOptions = [question.correctAnswer?.trim().toUpperCase() || ''];
+      }
 
-      isCorrect = submittedOption.toLowerCase() === correctOption.toLowerCase();
-      pointsAwarded = isCorrect ? question.points : 0;
+      // Check submitted answer
+      let submittedOptions: string[] = [];
+      try {
+        const parsed = JSON.parse(answer);
+        if (Array.isArray(parsed)) {
+          submittedOptions = parsed.map((o: string) => o.trim().toUpperCase());
+        } else {
+          submittedOptions = [answer.trim().toUpperCase()];
+        }
+      } catch (e) {
+        submittedOptions = [answer.trim().toUpperCase()];
+      }
+
+      if (correctOptions.length > 1) {
+        // Multi-select logic
+        // 1. Check if any WRONG option is selected -> 0 points
+        const hasWrongSelection = submittedOptions.some(opt => !correctOptions.includes(opt));
+
+        if (hasWrongSelection) {
+          isCorrect = false;
+          pointsAwarded = 0;
+        } else {
+          // 2. Calculate correct selections
+          const correctSelections = submittedOptions.filter(opt => correctOptions.includes(opt)).length;
+          const totalCorrectNeeded = correctOptions.length;
+
+          if (correctSelections === totalCorrectNeeded) {
+            isCorrect = true;
+            pointsAwarded = question.points;
+          } else if (correctSelections > 0) {
+            isCorrect = false; // Partially correct
+            pointsAwarded = Math.floor((correctSelections / totalCorrectNeeded) * question.points);
+          } else {
+            isCorrect = false;
+            pointsAwarded = 0;
+          }
+        }
+      } else {
+        // Single select logic (legacy compatible)
+        const submitted = submittedOptions[0] || '';
+        const correct = correctOptions[0] || '';
+        isCorrect = submitted === correct;
+        pointsAwarded = isCorrect ? question.points : 0;
+      }
     } else {
       // For text answer questions
       isCorrect = answer.trim().toLowerCase() === question.correctAnswer?.trim().toLowerCase();

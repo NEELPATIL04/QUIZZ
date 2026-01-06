@@ -7,6 +7,7 @@ import {
   getTeamAnswers,
   getCurrentQuestion,
   joinTeam,
+  getPublicScoreboard,
 } from '../controllers/team.controller';
 import { getQuizConfig } from '../controllers/quiz.controller';
 import { submitBid, getTimerState, getMcqResults } from '../controllers/mcq.controller';
@@ -22,6 +23,7 @@ router.get('/questions/current', getCurrentQuestion);
 router.get('/config', getQuizConfig as any); // Public access to quiz config for presenter
 router.post('/answers', submitAnswer);
 router.get('/teams/:teamNumber/answers', getTeamAnswers);
+router.get('/scoreboard', getPublicScoreboard);
 
 // MCQ Bidding routes - public
 router.post('/mcq/bid', submitBid);

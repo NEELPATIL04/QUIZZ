@@ -21,7 +21,7 @@ export default function TeamManagementPage() {
     numberOfPresenters: 1,
   });
   const [teams, setTeams] = useState<any[]>([]);
-  const [teamMembers, setTeamMembers] = useState<{[key: string]: any[]}>({});
+  const [teamMembers, setTeamMembers] = useState<{ [key: string]: any[] }>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [addMemberDialog, setAddMemberDialog] = useState(false);
@@ -56,7 +56,7 @@ export default function TeamManagementPage() {
       setTeams(teamsData);
 
       // Fetch members for each team
-      const membersData: {[key: string]: any[]} = {};
+      const membersData: { [key: string]: any[] } = {};
       for (const team of teamsData) {
         const members = await fetch(`http://localhost:5000/api/public/teams/${team.teamNumber}/members`).then(r => r.json());
         membersData[team.id] = members;
@@ -215,7 +215,7 @@ export default function TeamManagementPage() {
   };
 
   const handleResetAllScores = async () => {
-    if (!confirm('Are you sure you want to reset all team scores to 700 points?')) {
+    if (!confirm('Are you sure you want to reset all team scores to 0 points?')) {
       return;
     }
 
@@ -234,7 +234,7 @@ export default function TeamManagementPage() {
       if (!response.ok) throw new Error('Failed to reset scores');
 
       fetchData();
-      alert('All team scores reset to 700 points!');
+      alert('All team scores reset to 0 points!');
     } catch (error) {
       console.error('Error resetting scores:', error);
       alert('Failed to reset scores');
@@ -496,11 +496,10 @@ export default function TeamManagementPage() {
                                 <TableCell className="font-medium">{member.memberNumber}</TableCell>
                                 <TableCell className="font-semibold">{member.memberName}</TableCell>
                                 <TableCell>
-                                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                                    member.role === 'controller'
-                                      ? 'bg-purple-100 text-purple-800'
-                                      : 'bg-gray-100 text-gray-800'
-                                  }`}>
+                                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${member.role === 'controller'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                    }`}>
                                     {member.role === 'controller' && <Crown className="h-3 w-3" />}
                                     {member.role}
                                   </span>

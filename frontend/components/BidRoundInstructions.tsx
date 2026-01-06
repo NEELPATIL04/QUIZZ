@@ -32,8 +32,8 @@ export default function BidRoundInstructions() {
               <div>
                 <h2 className="text-lg font-semibold text-slate-900 mb-2">How It Works</h2>
                 <p className="text-slate-600 leading-relaxed">
-                  In the bid round, teams answer multiple-choice questions and wager points on their answer.
-                  Correct answers win a share of the pool, while incorrect answers lose the wagered points.
+                  In the bid round, teams use their <strong>accumulated score from Questions 1-15</strong> as their budget.
+                  You can wager any amount of your points on your answer. Correct answers win a share of the lost points pool, while incorrect answers lose the wagered points immediately.
                 </p>
               </div>
             </div>
@@ -51,11 +51,11 @@ export default function BidRoundInstructions() {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-slate-500 mb-0.5">STEP 1</p>
-                  <h3 className="text-sm font-semibold text-slate-900">Check Score</h3>
+                  <h3 className="text-sm font-semibold text-slate-900">Check Starting Balance</h3>
                 </div>
               </div>
               <p className="text-xs text-slate-600">
-                Review your current points before placing bids
+                Your budget is your total score from Q1-Q15.
               </p>
             </CardContent>
           </Card>
@@ -144,7 +144,7 @@ export default function BidRoundInstructions() {
                   <h3 className="text-sm font-semibold text-green-900">Correct Answer</h3>
                 </div>
                 <p className="text-xs text-slate-700">
-                  Win a proportional share of the prize pool based on your bid.
+                  Keep your bid + Win a proportional share of the points lost by incorrect teams.
                 </p>
               </div>
 

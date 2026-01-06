@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { db } from '../db';
-import { quizConfig, teams, questions, teamMembers, teamAnswers } from '../db/schema';
+import { quizConfig, teams, questions, teamMembers, teamAnswers, mcqBids, mcqTimerState } from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { AuthRequest } from '../middlewares/auth.middleware';
 
@@ -71,6 +71,37 @@ export const updateQuizConfig = async (req: AuthRequest, res: Response): Promise
   }
 };
 
+export const toggleBidResults = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { visible, questionId } = req.body;
+
+    const [existingConfig] = await db.select().from(quizConfig).limit(1);
+
+    if (!existingConfig) {
+      await db.insert(quizConfig).values({
+        isBidResultsVisible: visible,
+        activeBidQuestionId: questionId || null,
+      });
+    } else {
+      await db.update(quizConfig)
+        .set({
+          isBidResultsVisible: visible,
+          activeBidQuestionId: questionId || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(quizConfig.id, existingConfig.id));
+    }
+
+    res.json({
+      message: visible ? 'Bid results revealed' : 'Bid results hidden',
+      isBidResultsVisible: visible
+    });
+  } catch (error) {
+    console.error('Toggle bid results error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 // Initialize teams based on config
 export const initializeTeams = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -95,7 +126,7 @@ export const initializeTeams = async (req: AuthRequest, res: Response): Promise<
         teamsToCreate.push({
           teamNumber: i,
           teamName: `Team ${i}`,
-          score: 700, // Starting score for MCQ bidding rounds
+          score: 0, // Starting score
         });
       }
 
@@ -465,16 +496,331 @@ export const resetAllTeamScores = async (req: AuthRequest, res: Response): Promi
   try {
     const updated = await db
       .update(teams)
-      .set({ score: 700 })
+      .set({ score: 0 })
       .returning();
 
     res.json({
-      message: 'All team scores reset to 700 successfully',
+      message: 'All team scores reset to 0 successfully',
       teams: updated,
       count: updated.length
     });
   } catch (error) {
     console.error('Reset all team scores error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Reset question (delete answers and revert scores)
+export const resetQuestion = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Check Question Type
+    const [question] = await db.select().from(questions).where(eq(questions.id, id));
+    if (!question) {
+      res.status(404).json({ error: 'Question not found' });
+      return;
+    }
+
+    // --- BID ROUND RESET LOGIC ---
+    if (question.questionType === 'mcq_bidding') {
+      // Get all bids to revert scores
+      const bids = await db.select().from(mcqBids).where(eq(mcqBids.questionId, id));
+
+      for (const bid of bids) {
+        const [team] = await db.select().from(teams).where(eq(teams.id, bid.teamId)).limit(1);
+        // Verify team exists and points need to be reverted
+        if (team && bid.pointsAwarded !== null && bid.pointsAwarded !== 0) {
+          // Formula: Current Score - Points Awarded
+          // Example Win: 1000 + 500 = 1500. Revert: 1500 - 500 = 1000.
+          // Example Loss: 1000 - 200 = 800 (pointsAwarded is -200). Revert: 800 - (-200) = 1000.
+          const newScore = team.score - bid.pointsAwarded;
+
+          await db.update(teams).set({ score: newScore }).where(eq(teams.id, team.id));
+        }
+      }
+
+      // Delete all bids for this question
+      await db.delete(mcqBids).where(eq(mcqBids.questionId, id));
+
+      // Reset Timer State completely
+      await db.update(mcqTimerState)
+        .set({
+          isRunning: false,
+          timeRemaining: 10,
+          startedAt: null,
+          biddingClosed: false,
+          answerRevealed: false,
+          bidRoundEnabled: false // Also disable the round so instructions show again
+        })
+        .where(eq(mcqTimerState.questionId, id));
+
+      res.json({ message: 'Bid Round reset successfully (scores reverted, bids deleted, timer reset)' });
+      return;
+    }
+
+    // 1. Get all answers for this question
+    const answers = await db.select().from(teamAnswers).where(eq(teamAnswers.questionId, id));
+
+    // 2. Revert scores
+    for (const ans of answers) {
+      if (ans.pointsAwarded && ans.pointsAwarded > 0) {
+        // Find team and subtract score
+        const [team] = await db.select().from(teams).where(eq(teams.id, ans.teamId)).limit(1);
+        if (team) {
+          await db.update(teams)
+            .set({ score: team.score - ans.pointsAwarded })
+            .where(eq(teams.id, team.id));
+        }
+      }
+    }
+
+    // 3. Delete answers
+    await db.delete(teamAnswers).where(eq(teamAnswers.questionId, id));
+
+    res.json({ message: 'Question reset successfully (scores reverted & answers deleted)' });
+  } catch (error) {
+    console.error('Reset question error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+// Get results for a specific question (admin only)
+export const getQuestionResults = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Check question type first
+    const [question] = await db.select().from(questions).where(eq(questions.id, id));
+
+    if (!question) {
+      res.status(404).json({ error: 'Question not found' });
+      return;
+    }
+
+    if (question.questionType === 'mcq_bidding') {
+      const results = await db
+        .select({
+          answerId: mcqBids.id,
+          teamId: teams.id,
+          teamName: teams.teamName,
+          teamNumber: teams.teamNumber,
+          answer: mcqBids.selectedOption,
+          isCorrect: mcqBids.isCorrect,
+          pointsAwarded: mcqBids.pointsAwarded,
+          // Specific fields for bidding
+          bidAmount: mcqBids.bidAmount,
+          currentScore: teams.score,
+        })
+        .from(mcqBids)
+        .innerJoin(teams, eq(mcqBids.teamId, teams.id))
+        .where(eq(mcqBids.questionId, id))
+        .orderBy(teams.teamNumber);
+
+      res.json(results);
+      return;
+    }
+
+    // Get all answers for this question joined with team details
+    const results = await db
+      .select({
+        answerId: teamAnswers.id,
+        teamId: teams.id,
+        teamName: teams.teamName,
+        teamNumber: teams.teamNumber,
+        answer: teamAnswers.answer,
+        isCorrect: teamAnswers.isCorrect,
+        pointsAwarded: teamAnswers.pointsAwarded,
+        timeTaken: teamAnswers.timeTaken,
+        submittedAt: teamAnswers.submittedAt,
+      })
+      .from(teamAnswers)
+      .innerJoin(teams, eq(teamAnswers.teamId, teams.id))
+      .where(eq(teamAnswers.questionId, id))
+      .orderBy(teams.teamNumber);
+
+    res.json(results);
+  } catch (error) {
+    console.error('Get question results error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Update a specific team answer score (admin only)
+export const updateTeamAnswerScore = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { answerId } = req.params;
+    const { pointsAwarded } = req.body;
+
+    if (typeof pointsAwarded !== 'number') {
+      res.status(400).json({ error: 'Invalid points value' });
+      return;
+    }
+
+    // 1. Get the current answer to know the old score and team ID
+    const [currentAnswer] = await db
+      .select()
+      .from(teamAnswers)
+      .where(eq(teamAnswers.id, answerId))
+      .limit(1);
+
+    if (!currentAnswer) {
+      res.status(404).json({ error: 'Answer not found' });
+      return;
+    }
+
+    const oldPoints = currentAnswer.pointsAwarded || 0;
+    const pointsDiff = pointsAwarded - oldPoints;
+
+    // 2. Update the team answer
+    const [updatedAnswer] = await db
+      .update(teamAnswers)
+      .set({ pointsAwarded })
+      .where(eq(teamAnswers.id, answerId))
+      .returning();
+
+    // 3. Update the team's total score
+    const [team] = await db
+      .select()
+      .from(teams)
+      .where(eq(teams.id, currentAnswer.teamId))
+      .limit(1);
+
+    if (team) {
+      await db
+        .update(teams)
+        .set({ score: team.score + pointsDiff })
+        .where(eq(teams.id, team.id));
+    }
+
+    res.json({
+      message: 'Score updated successfully',
+      answer: updatedAnswer,
+      scoreDiff: pointsDiff
+    });
+  } catch (error) {
+    console.error('Update team answer score error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+// Toggle scoreboard visibility
+export const toggleScoreboard = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { isVisible } = req.body;
+
+    const [config] = await db.select().from(quizConfig).limit(1);
+
+    if (!config) {
+      res.status(400).json({ error: 'Quiz config not found' });
+      return;
+    }
+
+    const [updated] = await db
+      .update(quizConfig)
+      .set({
+        isScoreboardVisible: isVisible,
+        updatedAt: new Date(),
+      })
+      .where(eq(quizConfig.id, config.id))
+      .returning();
+
+    res.json({ message: 'Scoreboard visibility updated', config: updated });
+  } catch (error) {
+    console.error('Toggle scoreboard error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Validate and Recalculate Scores
+export const validateTeamScores = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const allTeams = await db.select().from(teams);
+    const discrepancies = [];
+    let fixedCount = 0;
+
+    for (const team of allTeams) {
+      const answers = await db
+        .select({ points: teamAnswers.pointsAwarded })
+        .from(teamAnswers)
+        .where(eq(teamAnswers.teamId, team.id));
+
+      const calculatedScore = answers.reduce((acc, curr) => acc + (curr.points || 0), 0);
+
+      if (calculatedScore !== team.score) {
+        discrepancies.push({
+          teamName: team.teamName,
+          oldScore: team.score,
+          newScore: calculatedScore,
+        });
+
+        // Auto-fix the score
+        await db
+          .update(teams)
+          .set({ score: calculatedScore })
+          .where(eq(teams.id, team.id));
+
+        fixedCount++;
+      }
+    }
+
+    res.json({
+      message: 'Scores validation completed',
+      fixedCount,
+      discrepancies,
+    });
+  } catch (error) {
+    console.error('Validate scores error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Get Bid Round Analytics
+export const getBidRoundAnalytics = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const allTeams = await db.select().from(teams).orderBy(teams.teamNumber);
+
+    const analytics = await Promise.all(
+      allTeams.map(async (team) => {
+        // Calculate Pre-Bid Score (from teamAnswers - Q1-Q15)
+        const standardAnswers = await db
+          .select({ points: teamAnswers.pointsAwarded })
+          .from(teamAnswers)
+          .where(eq(teamAnswers.teamId, team.id));
+
+        const preBidScore = standardAnswers.reduce((sum, a) => sum + (a.points || 0), 0);
+
+        // Calculate Bid Round Stats (from mcqBids)
+        const bids = await db
+          .select()
+          .from(mcqBids)
+          .where(eq(mcqBids.teamId, team.id));
+
+        const totalBidAmount = bids.reduce((sum, b) => sum + b.bidAmount, 0);
+        const totalWon = bids
+          .filter((b) => (b.pointsAwarded || 0) > 0)
+          .reduce((sum, b) => sum + (b.pointsAwarded || 0), 0);
+
+        // Loss is stored as negative points in pointsAwarded, so we take abs
+        const totalLost = bids
+          .filter((b) => (b.pointsAwarded || 0) < 0)
+          .reduce((sum, b) => sum + Math.abs(b.pointsAwarded || 0), 0);
+
+        return {
+          teamId: team.id,
+          teamName: team.teamName,
+          teamNumber: team.teamNumber,
+          preBidScore,
+          totalBidAmount,
+          totalWon,
+          totalLost,
+          netBidChange: totalWon - totalLost,
+          currentScore: team.score,
+        };
+      })
+    );
+
+    res.json(analytics);
+  } catch (error) {
+    console.error('Bid analytics error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

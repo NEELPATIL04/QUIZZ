@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { ArrowLeft, Eye } from 'lucide-react';
 import GitQuizInterface from '@/components/GitQuizInterface';
 import HtmlCssChallenge from '@/components/HtmlCssChallenge';
+import MatchFollowingChallenge from '@/components/MatchFollowingChallenge';
 
 export default function QuestionPreviewPage() {
   const params = useParams();
@@ -150,6 +151,20 @@ export default function QuestionPreviewPage() {
           <div className="p-4 bg-yellow-100 text-yellow-800 rounded-lg">
             JS Engine Challenge Preview Not Fully Implemented in this View
           </div>
+        ) : question.questionType === 'match_following' ? (
+          <MatchFollowingChallenge
+            question={{
+              id: question.id,
+              title: question.title,
+              description: question.description || '',
+              options: question.options ? JSON.parse(question.options) : [],
+              points: question.points,
+            }}
+            teamNumber={0}
+            isController={true}
+            readOnly={false}
+            onSubmit={async () => ({ isCorrect: true, pointsAwarded: 100, correctCount: 4, totalCount: 4 })}
+          />
         ) : (
           <Card>
             <CardHeader>

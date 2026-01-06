@@ -15,11 +15,12 @@ import McqBiddingChallenge from '@/components/McqBiddingChallenge';
 import HtmlTreeBuilderFinal from '@/components/HtmlTreeBuilderFinal';
 import TrueFalseDragDropChallenge from '@/components/TrueFalseDragDropChallenge';
 import MultipleChoiceChallenge from '@/components/MultipleChoiceChallenge';
+import MatchFollowingChallenge from '@/components/MatchFollowingChallenge';
 
 export default function TeamQuizPage() {
   const router = useRouter();
   const [teamNumber, setTeamNumber] = useState<number | null>(null);
-  const [teamScore, setTeamScore] = useState<number>(700); // Starting score
+  const [teamScore, setTeamScore] = useState<number>(0); // Starting score
   const [memberRole, setMemberRole] = useState<string>('viewer');
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -28,6 +29,8 @@ export default function TeamQuizPage() {
   const [loading, setLoading] = useState(true);
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [timerRunning, setTimerRunning] = useState(false);
+
+
 
   useEffect(() => {
     const storedTeamNumber = sessionStorage.getItem('teamNumber');
@@ -38,19 +41,25 @@ export default function TeamQuizPage() {
       return;
     }
 
-    setTeamNumber(parseInt(storedTeamNumber));
+    const tNum = parseInt(storedTeamNumber);
+    setTeamNumber(tNum);
 
     // Fetch member role
-    fetchMemberRole(parseInt(storedTeamNumber), storedMemberId);
+    fetchMemberRole(tNum, storedMemberId);
     fetchQuestions();
-    fetchTeamScore();
+    fetchTeamScore(tNum);
+  }, []);
+
+  // Polling for score and questions
+  useEffect(() => {
+    if (!teamNumber) return;
 
     const interval = setInterval(() => {
       fetchQuestions();
-      fetchTeamScore();
+      fetchTeamScore(teamNumber);
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [teamNumber]);
 
   // Timer: Reset on question change
   useEffect(() => {
@@ -131,13 +140,14 @@ export default function TeamQuizPage() {
     }
   };
 
-  const fetchTeamScore = async () => {
-    if (!teamNumber) return;
+  const fetchTeamScore = async (tNum?: number) => {
+    const targetTeamNumber = tNum ?? teamNumber;
+    if (!targetTeamNumber) return;
 
     try {
       const response = await fetch(`http://localhost:5000/api/public/teams`);
       const teams = await response.json();
-      const team = teams.find((t: any) => t.teamNumber === teamNumber);
+      const team = teams.find((t: any) => t.teamNumber === targetTeamNumber);
       if (team) {
         setTeamScore(team.score);
       }
@@ -488,6 +498,17 @@ export default function TeamQuizPage() {
 
                 // Multiple Choice Question (New)
                 if (q.questionType === 'multiple_choice') {
+                  // Determine if multi-select
+                  let isMultiSelect = false;
+                  try {
+                    const parsed = JSON.parse(q.correctAnswer || '');
+                    if (Array.isArray(parsed)) {
+                      isMultiSelect = true;
+                    }
+                  } catch (e) {
+                    // Not a json array, likely single string
+                  }
+
                   const mcqQuestion = {
                     id: q.id,
                     questionNumber: q.questionNumber,
@@ -531,6 +552,7 @@ export default function TeamQuizPage() {
                         hasPreviousQuestion={currentQuestionIndex > 0}
                         nextQuestionIsBidRound={nextQuestionIsBidRound}
                         isSubmitted={isSubmitted}
+                        isMultiSelect={isMultiSelect}
                       />
                     </div>
                   );
@@ -547,6 +569,10 @@ export default function TeamQuizPage() {
                     points: q.points,
                   };
 
+                  // Check if next question is a bid round
+                  const nextQuestion = currentQuestionIndex < questions.length - 1 ? questions[currentQuestionIndex + 1] : null;
+                  const nextQuestionIsBidRound = nextQuestion?.questionType === 'mcq_bidding';
+
                   return (
                     <div key={q.id}>
                       <McqBiddingChallenge
@@ -555,6 +581,62 @@ export default function TeamQuizPage() {
                         teamScore={teamScore}
                         isController={memberRole === 'controller'}
                         onBidSubmitted={() => fetchTeamScore()}
+                        onNext={currentQuestionIndex < questions.length - 1 ? () => setCurrentQuestionIndex(currentQuestionIndex + 1) : undefined}
+                        onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(currentQuestionIndex - 1) : undefined}
+                        hasNextQuestion={currentQuestionIndex < questions.length - 1}
+                        hasPreviousQuestion={currentQuestionIndex > 0}
+                        nextQuestionIsBidRound={nextQuestionIsBidRound}
+                      />
+                    </div>
+                  );
+                }
+
+                // Match Following Challenge Question
+                if (q.questionType === 'match_following') {
+                  const matchQuestion = {
+                    id: q.id,
+                    title: q.title,
+                    description: q.description || '',
+                    options: q.options ? JSON.parse(q.options) : [],
+                    points: q.points,
+                  };
+
+                  // Check if next question is a bid round
+                  const nextQuestion = currentQuestionIndex < questions.length - 1 ? questions[currentQuestionIndex + 1] : null;
+                  const nextQuestionIsBidRound = nextQuestion?.questionType === 'mcq_bidding';
+
+                  return (
+                    <div key={q.id}>
+                      <MatchFollowingChallenge
+                        question={matchQuestion}
+                        teamNumber={teamNumber!}
+                        isController={memberRole === 'controller'}
+                        onSubmit={async (answer, timeTaken, startTime) => {
+                          try {
+                            const result = await api.submitAnswer(
+                              teamNumber!,
+                              q.id,
+                              JSON.stringify(answer),
+                              timeTaken,
+                              startTime
+                            );
+                            setSubmittedAnswers(new Set([...submittedAnswers, q.id]));
+                            return {
+                              isCorrect: result.isCorrect,
+                              pointsAwarded: result.pointsAwarded,
+                              correctCount: result.correctCount || 0,
+                              totalCount: result.totalCount || 0,
+                            };
+                          } catch (error: any) {
+                            throw new Error(error.message || 'Failed to submit answer');
+                          }
+                        }}
+                        onNext={currentQuestionIndex < questions.length - 1 ? () => setCurrentQuestionIndex(currentQuestionIndex + 1) : undefined}
+                        onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(currentQuestionIndex - 1) : undefined}
+                        hasNextQuestion={currentQuestionIndex < questions.length - 1}
+                        hasPreviousQuestion={currentQuestionIndex > 0}
+                        nextQuestionIsBidRound={nextQuestionIsBidRound}
+                        isSubmitted={isSubmitted}
                       />
                     </div>
                   );

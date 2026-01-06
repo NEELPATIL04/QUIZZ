@@ -222,6 +222,16 @@ export const api = {
     if (!response.ok) throw new Error('Failed to delete question');
   },
 
+  async resetQuestion(token: string, questionId: string) {
+    const response = await fetch(`${API_URL}/quiz/questions/${questionId}/reset`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to reset question');
+    return response.json();
+  },
+
   // Public APIs (no auth)
   async getPublicTeams() {
     const response = await fetch(`${API_URL}/public/teams`);
@@ -301,6 +311,62 @@ export const api = {
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to get team results');
+    return response.json();
+  },
+
+  async getQuestionResults(token: string, questionId: string) {
+    const response = await fetch(`${API_URL}/quiz/questions/${questionId}/results`, {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to get question results');
+    return response.json();
+  },
+
+  async updateTeamAnswerScore(token: string, answerId: string, pointsAwarded: number) {
+    const response = await fetch(`${API_URL}/quiz/team-answers/${answerId}/score`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ pointsAwarded }),
+    });
+    if (!response.ok) throw new Error('Failed to update answer score');
+    return response.json();
+  },
+
+  async toggleScoreboard(token: string, isVisible: boolean) {
+    const response = await fetch(`${API_URL}/quiz/scoreboard/toggle`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ isVisible }),
+    });
+    if (!response.ok) throw new Error('Failed to toggle scoreboard');
+    return response.json();
+  },
+
+  async validateTeamScores(token: string) {
+    const response = await fetch(`${API_URL}/quiz/scores/validate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to validate scores');
+    return response.json();
+  },
+
+  async getBidRoundAnalytics(token: string) {
+    const response = await fetch(`${API_URL}/quiz/analytics/bid-round`, {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to get bid analytics');
     return response.json();
   },
 };

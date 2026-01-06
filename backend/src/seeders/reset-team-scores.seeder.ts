@@ -3,7 +3,7 @@ import { teams } from '../db/schema';
 
 (async () => {
   try {
-    console.log('🔄 Resetting all team scores to 700 points...\n');
+
 
     // Update all teams to have 700 points
     const updated = await db

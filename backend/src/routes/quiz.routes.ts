@@ -17,6 +17,13 @@ import {
   removeTeamMember,
   updateTeamScore,
   resetAllTeamScores,
+  resetQuestion,
+  getQuestionResults,
+  updateTeamAnswerScore,
+  toggleScoreboard,
+  validateTeamScores,
+  getBidRoundAnalytics,
+  toggleBidResults,
 } from '../controllers/quiz.controller';
 import {
   getTimerState,
@@ -43,6 +50,10 @@ router.patch('/teams/:teamId/score', authorize('super_admin'), updateTeamScore);
 router.post('/teams/reset-scores', authorize('super_admin'), resetAllTeamScores);
 router.delete('/team-members/:memberId', authorize('super_admin'), removeTeamMember);
 router.get('/results', authorize('super_admin'), getTeamResults);
+router.post('/scoreboard/toggle', authorize('super_admin', 'admin'), toggleScoreboard);
+router.post('/scores/validate', authorize('super_admin', 'admin'), validateTeamScores);
+router.post('/scoreboard/toggle-bid-results', authorize('super_admin', 'admin'), toggleBidResults);
+router.get('/analytics/bid-round', authorize('super_admin', 'admin'), getBidRoundAnalytics);
 
 // Question management routes - both admin and super_admin
 router.get('/questions', authorize('super_admin', 'admin'), getAllQuestions);
@@ -53,6 +64,9 @@ router.delete('/questions/:id', authorize('super_admin', 'admin'), deleteQuestio
 router.post('/current-question', authorize('super_admin', 'admin'), setCurrentQuestion);
 router.get('/current-question-id', authorize('super_admin', 'admin'), getCurrentQuestionId);
 router.post('/toggle-show-answers', authorize('super_admin', 'admin'), toggleShowAnswers);
+router.post('/questions/:id/reset', authorize('super_admin', 'admin'), resetQuestion);
+router.get('/questions/:id/results', authorize('super_admin', 'admin'), getQuestionResults);
+router.patch('/team-answers/:answerId/score', authorize('super_admin', 'admin'), updateTeamAnswerScore);
 
 // MCQ Bidding routes - admin only
 router.get('/mcq/:questionId/timer', authorize('super_admin', 'admin'), getTimerState);

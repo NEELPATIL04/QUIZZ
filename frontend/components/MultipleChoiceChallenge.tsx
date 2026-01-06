@@ -30,7 +30,9 @@ interface MultipleChoiceChallengeProps {
     hasNextQuestion?: boolean;
     hasPreviousQuestion?: boolean;
     nextQuestionIsBidRound?: boolean;
+
     isSubmitted?: boolean;
+    isMultiSelect?: boolean;
 }
 
 export default function MultipleChoiceChallenge({
@@ -44,19 +46,43 @@ export default function MultipleChoiceChallenge({
     hasPreviousQuestion,
     nextQuestionIsBidRound = false,
     isSubmitted: isSubmittedProp = false,
+    isMultiSelect = false,
 }: MultipleChoiceChallengeProps) {
-    const [selectedOption, setSelectedOption] = useState<string | null>(null);
+    const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+    // Keep legacy single select state for backward compat or derived from array?
+    // Let's use array for everything internally effectively.
+
+    // Derived state for single/multi
+    const isOptionSelected = (key: string) => selectedOptions.includes(key);
+
+    const handleOptionClick = (key: string) => {
+        if (isSubmitted) return;
+
+        if (isMultiSelect) {
+            setSelectedOptions(prev =>
+                prev.includes(key)
+                    ? prev.filter(k => k !== key)
+                    : [...prev, key]
+            );
+        } else {
+            setSelectedOptions([key]);
+        }
+    };
     const [isSubmitted, setIsSubmitted] = useState(isSubmittedProp);
     const [startTime] = useState(new Date());
 
     const handleSubmit = async () => {
-        if (!selectedOption) return;
+        if (selectedOptions.length === 0) return;
 
         // Time taken calculation
         const timeTaken = Math.floor((new Date().getTime() - startTime.getTime()) / 1000);
 
         try {
-            await onSubmit(selectedOption, timeTaken, startTime);
+            // For multi-select, send full array stringified. For single, send the string.
+            // Backend now handles both, but let's be consistent.
+            const answerPayload = isMultiSelect ? JSON.stringify(selectedOptions) : selectedOptions[0];
+
+            await onSubmit(answerPayload, timeTaken, startTime);
             setIsSubmitted(true);
         } catch (error) {
             console.error('Submit error:', error);
@@ -113,12 +139,14 @@ export default function MultipleChoiceChallenge({
                 {/* Code Snippet / Description */}
                 <Card className="bg-slate-900 border border-slate-700 shadow-xl overflow-hidden">
                     <CardContent className="p-6">
-                        <div className="prose prose-invert max-w-none">
+                        <div className="prose prose-invert max-w-none text-slate-100 [&>img]:mt-6 [&>img]:rounded-lg [&>img]:border [&>img]:border-white/10">
                             <ReactMarkdown
                                 components={{
                                     pre: ({ node, ...props }: any) => <div className="bg-slate-950 p-4 rounded-lg overflow-x-auto border border-slate-800 text-slate-50 whitespace-pre-wrap" {...props} />,
                                     code: ({ node, ...props }: any) => <code className="text-blue-300 font-mono text-sm" {...props} />,
-                                    p: ({ node, ...props }: any) => <p className="text-slate-200 mb-4" {...props} />
+                                    p: ({ node, ...props }: any) => <p className="text-slate-100 leading-relaxed mb-4" {...props} />,
+                                    li: ({ node, ...props }: any) => <li className="text-slate-100 ml-4" {...props} />,
+                                    strong: ({ node, ...props }: any) => <strong className="text-white font-bold" {...props} />,
                                 }}
                             >
                                 {question.description}
@@ -149,41 +177,49 @@ export default function MultipleChoiceChallenge({
 
                                     <div className="grid grid-cols-1 gap-3">
                                         {question.options.map((option) => (
-                                            <div
+                                            <button
                                                 key={option.key}
-                                                onClick={() => isController && !isSubmitted && setSelectedOption(option.key)}
-                                                className={`
-                          relative p-4 rounded-xl border-2 transition-all duration-200 flex items-center gap-4 group
-                          ${isController && !isSubmitted ? 'cursor-pointer hover:bg-white/5' : 'cursor-default opacity-80'}
-                          ${selectedOption === option.key
-                                                        ? 'border-blue-500 bg-blue-500/20'
-                                                        : 'border-slate-700 bg-slate-800/50'}
-                        `}
+                                                onClick={() => handleOptionClick(option.key)}
+                                                disabled={isSubmitted || !isController}
+                                                className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 relative overflow-hidden group
+                                ${isOptionSelected(option.key)
+                                                        ? 'border-blue-400 bg-blue-900/30 shadow-[0_0_15px_rgba(96,165,250,0.3)]'
+                                                        : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20'
+                                                    }
+                                ${!isController || isSubmitted ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}
+                            `}
                                             >
-                                                <div className={`
-                          w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold border-2 transition-colors
-                          ${selectedOption === option.key
-                                                        ? 'bg-blue-500 border-blue-500 text-white'
-                                                        : 'border-slate-600 text-slate-400 group-hover:border-slate-500'}
-                        `}>
-                                                    {option.key}
-                                                </div>
-                                                <div className="flex-1 font-mono text-slate-200">
-                                                    {option.text}
-                                                </div>
-                                                {selectedOption === option.key && (
-                                                    <div className="absolute right-4 text-blue-400">
-                                                        <CheckCircle className="h-6 w-6" />
+                                                <div className="flex items-start gap-4">
+                                                    <div className={`flex-shrink-0 w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors
+                                    ${isOptionSelected(option.key)
+                                                            ? 'border-blue-400 bg-blue-400 text-white'
+                                                            : 'border-white/30 text-white/50 group-hover:border-white/50'
+                                                        }
+                                `}>
+                                                        {isMultiSelect ? (
+                                                            // Checkbox style for multi
+                                                            <div className={`w-4 h-4 rounded-sm ${isOptionSelected(option.key) ? 'bg-white' : ''}`} />
+                                                        ) : (
+                                                            // Radio style for single
+                                                            <span className="font-bold">{option.key}</span>
+                                                        )}
+                                                    </div>                <div className="flex-1 font-mono text-slate-200">
+                                                        {option.text}
                                                     </div>
-                                                )}
-                                            </div>
+                                                    {isOptionSelected(option.key) && (
+                                                        <div className="absolute right-4 text-blue-400">
+                                                            <CheckCircle className="h-6 w-6" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </button>
                                         ))}
                                     </div>
 
                                     {isController && (
                                         <Button
                                             onClick={handleSubmit}
-                                            disabled={!selectedOption || isSubmitted}
+                                            disabled={selectedOptions.length === 0 || isSubmitted}
                                             className="w-full mt-6 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold py-6 text-lg shadow-lg shadow-blue-900/20"
                                         >
                                             Submit Answer

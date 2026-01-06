@@ -5,10 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { api } from '@/lib/api';
 import { Presentation, Lock, Eye, EyeOff } from 'lucide-react';
 import GitBashTerminal from '@/components/GitBashTerminal';
+import ScoreboardOverlay from '@/components/ScoreboardOverlay';
+import McqResultsTable from '@/components/McqResultsTable';
 
 export default function PresenterPage() {
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
   const [showAnswers, setShowAnswers] = useState(false);
+  const [showScoreboard, setShowScoreboard] = useState(false);
+  const [showBidResults, setShowBidResults] = useState(false);
+  const [bidResults, setBidResults] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,9 +44,35 @@ export default function PresenterPage() {
       const response = await fetch('http://localhost:5000/api/public/config');
       const data = await response.json();
       setShowAnswers(data.showAnswers || false);
+      setShowScoreboard(data.isScoreboardVisible || false);
+
+      // Handle Bid Results Toggle
+      if (data.isBidResultsVisible && data.activeBidQuestionId) {
+        if (!showBidResults || bidResults?.questionId !== data.activeBidQuestionId) {
+          fetchBidResults(data.activeBidQuestionId);
+        }
+        setShowBidResults(true);
+      } else {
+        setShowBidResults(false);
+      }
+
     } catch (error) {
       console.error('Error fetching quiz config:', error);
     }
+  };
+
+  const fetchBidResults = async (questionId: string) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/public/mcq/${questionId}/results`);
+      if (res.ok) {
+        const data = await res.json();
+        // The endpoint returns { teamResults, correctAnswer, totalLostPoints }
+        // We set the whole object or just teamResults? 
+        // Logic below expects 'bidResults' to be the array or uses it to access properties.
+        // Let's store the full object to access helper fields, but we need to check usage.
+        setBidResults(data);
+      }
+    } catch (e) { console.error(e); }
   };
 
   if (loading) {
@@ -54,7 +85,32 @@ export default function PresenterPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+      {showScoreboard && <ScoreboardOverlay />}
+
+      {/* Bid Results Overlay */}
+      {showBidResults && bidResults && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-4xl p-6 bg-white rounded-xl shadow-2xl border-4 border-yellow-500 scale-100 animate-scaleIn">
+            <div className="text-center mb-6">
+              <h2 className="text-4xl font-bold text-slate-900 mb-2">Bid Round Results</h2>
+              <h3 className="text-xl text-slate-600 font-semibold">{bidResults?.teamResults?.[0]?.questionTitle || "Round Complete"}</h3>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto">
+              {/* Re-using McqResultsTable Component but customized for big screen if needed. 
+                     For now, using the standard component which is responsive. */}
+              {/* We need to transform the data if structure differs, but assuming endpoint returns same structure as admin view */}
+              <McqResultsTable
+                correctAnswer={bidResults?.correctAnswer || "Answer"}
+                teamResults={bidResults?.teamResults || []}
+                totalLostPoints={bidResults?.totalLostPoints || 0}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto space-y-8">
+
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center gap-3">
             <Presentation className="h-12 w-12 text-white" />
@@ -145,27 +201,27 @@ export default function PresenterPage() {
                         availableCommands={
                           currentQuestion.availableCommands
                             ? JSON.parse(currentQuestion.availableCommands).map((cmd: string, idx: number) => ({
-                                id: `cmd-${idx}`,
-                                command: cmd,
-                                description: '',
-                              }))
+                              id: `cmd-${idx}`,
+                              command: cmd,
+                              description: '',
+                            }))
                             : []
                         }
                         completedCommands={
                           currentQuestion.completedCommands && currentQuestion.correctAnswer
                             ? [
-                                ...JSON.parse(currentQuestion.completedCommands).map((cmd: string) => ({
-                                  command: cmd,
-                                  output: '',
-                                })),
-                                ...JSON.parse(currentQuestion.correctAnswer).map((cmd: string) => ({
-                                  command: cmd,
-                                  output: '',
-                                })),
-                              ]
+                              ...JSON.parse(currentQuestion.completedCommands).map((cmd: string) => ({
+                                command: cmd,
+                                output: '',
+                              })),
+                              ...JSON.parse(currentQuestion.correctAnswer).map((cmd: string) => ({
+                                command: cmd,
+                                output: '',
+                              })),
+                            ]
                             : []
                         }
-                        onCommandExecute={() => {}}
+                        onCommandExecute={() => { }}
                         readOnly={true}
                       />
                       <div className="mt-6 space-y-3">

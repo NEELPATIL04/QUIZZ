@@ -4,7 +4,7 @@ import { pgTable, uuid, varchar, integer, timestamp, boolean, text, pgEnum, json
 export const teamMemberRoleEnum = pgEnum('team_member_role', ['controller', 'viewer']);
 
 // Question type enum
-export const questionTypeEnum = pgEnum('question_type', ['git_challenge', 'html_css_challenge', 'js_engine_challenge', 'broken_html_challenge', 'mcq_bidding', 'multiple_choice', 'text_answer', 'true_false_drag_drop']);
+export const questionTypeEnum = pgEnum('question_type', ['git_challenge', 'html_css_challenge', 'js_engine_challenge', 'broken_html_challenge', 'mcq_bidding', 'multiple_choice', 'text_answer', 'true_false_drag_drop', 'match_following']);
 
 // Quiz configuration table
 export const quizConfig = pgTable('quiz_config', {
@@ -16,6 +16,9 @@ export const quizConfig = pgTable('quiz_config', {
   currentQuestionId: uuid('current_question_id'), // For presenter - tracks which question is currently active
   showAnswers: boolean('show_answers').notNull().default(false), // Controls answer reveal
   isActive: boolean('is_active').notNull().default(false),
+  isScoreboardVisible: boolean('is_scoreboard_visible').notNull().default(false),
+  isBidResultsVisible: boolean('is_bid_results_visible').notNull().default(false), // Controls bid table reveal
+  activeBidQuestionId: uuid('active_bid_question_id'), // Which question's results to show
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

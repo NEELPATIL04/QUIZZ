@@ -7,13 +7,36 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Trash2, Lock, Unlock, Monitor, Eye, EyeOff, ExternalLink, Play, AlertCircle, CheckCircle, Pencil } from 'lucide-react';
+import { Plus, Trash2, Lock, Unlock, Monitor, Eye, EyeOff, ExternalLink, Play, AlertCircle, CheckCircle, Pencil, RotateCcw } from 'lucide-react';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 import McqResultsTable from '@/components/McqResultsTable';
 
 export default function QuestionsPage() {
   const [questions, setQuestions] = useState<any[]>([]);
+  // ... existing state ...
+
+  const handleResetQuestion = async (id: string, title: string) => {
+    if (!confirm(`Are you sure you want to RESET "${title}"? \n\nThis will DELETE all submitted answers for this question and DEDUCT the points from the team scores.\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      await api.resetQuestion(token, id);
+      fetchQuestions(); // Refresh list/stats
+      // show toast? (not implemented in this file yet, using alert)
+      alert(`Question "${title}" has been reset.`);
+    } catch (error) {
+      console.error('Error resetting question:', error);
+      alert('Failed to reset question');
+    }
+  };
+
+  // ... rest of component ...
+
   const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
   const [showAnswers, setShowAnswers] = useState(false);
@@ -715,79 +738,55 @@ export default function QuestionsPage() {
                       <TableCell>
                         {isMcq ? (
                           <div className="flex flex-col gap-1.5">
-                            {/* For FIRST MCQ only: Enable/Disable Bid Round */}
+                            {/* Enable/Disable Bid Round Controls - ONLY for First MCQ */}
                             {isFirstMcq && (
-                              <>
-                                {timerState?.bidRoundEnabled ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleDisableBidRoundForQuestion(q.id)}
-                                    className="bg-green-50 border-green-300 text-green-800 hover:bg-green-100 text-xs"
-                                  >
-                                    ✅ Active (Click to Disable)
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleEnableBidRoundForQuestion(q.id)}
-                                    className="bg-purple-600 hover:bg-purple-700 text-white text-xs"
-                                  >
-                                    🎯 Enable Bid Round
-                                  </Button>
-                                )}
-
-                                {/* Start Timer - only show if bid round is enabled */}
-                                {timerState?.bidRoundEnabled && !timerState?.isRunning && !timerState?.biddingClosed && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleStartTimerForQuestion(q.id)}
-                                    className="bg-orange-600 hover:bg-orange-700 text-white text-xs"
-                                  >
-                                    ⏱️ Start Timer
-                                  </Button>
-                                )}
-
-                                {/* Timer Running Indicator */}
-                                {timerState?.isRunning && (
-                                  <span className="text-xs text-orange-600 font-medium animate-pulse">
-                                    ⏱️ Timer: {timerState.timeRemaining}s
-                                  </span>
-                                )}
-                              </>
-                            )}
-
-                            {/* For ALL MCQ: Bidding Closed - Waiting for Reveal */}
-                            {timerState?.biddingClosed && !timerState?.answerRevealed && !timerState?.isRunning && (
-                              <>
-                                <span className="text-xs text-yellow-600 font-medium">
-                                  🔒 Bidding Closed
-                                </span>
+                              timerState?.bidRoundEnabled ? (
                                 <Button
                                   size="sm"
-                                  onClick={() => handleRevealAnswerForQuestion(q.id)}
-                                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
+                                  variant="outline"
+                                  onClick={() => handleDisableBidRoundForQuestion(q.id)}
+                                  className="bg-green-50 border-green-300 text-green-800 hover:bg-green-100 text-xs"
                                 >
-                                  🎊 Reveal Answer & Distribute Points
+                                  ✅ Active (Click to Disable)
                                 </Button>
-                              </>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleEnableBidRoundForQuestion(q.id)}
+                                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs"
+                                >
+                                  🎯 Enable Bid Round
+                                </Button>
+                              )
                             )}
 
-                            {/* For ALL MCQ: Answer Revealed Indicator */}
-                            {timerState?.answerRevealed && (
-                              <span className="text-xs text-blue-600 font-medium">
-                                ✨ Answer Revealed
+                            {/* Start Timer Control - For First MCQ: checks enabled. For others: Always show if not running/closed */}
+                            {((isFirstMcq && timerState?.bidRoundEnabled) || (!isFirstMcq)) && !timerState?.isRunning && !timerState?.biddingClosed && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleStartTimerForQuestion(q.id)}
+                                className="bg-orange-600 hover:bg-orange-700 text-white text-xs"
+                              >
+                                ⏱️ Start Timer
+                              </Button>
+                            )}
+
+                            {/* Timer Running Indicator */}
+                            {timerState?.isRunning && (
+                              <span className="text-xs text-orange-600 font-medium animate-pulse">
+                                ⏱️ Timer: {timerState.timeRemaining}s
                               </span>
                             )}
 
-                            {/* For non-first MCQ: Just show Reveal Answer button if not revealed */}
-                            {!isFirstMcq && !timerState?.answerRevealed && (
+                            {/* Reveal Answer Controls */}
+                            {(timerState?.biddingClosed || timerState?.answerRevealed) && !timerState?.isRunning && (
                               <Button
                                 size="sm"
                                 onClick={() => handleRevealAnswerForQuestion(q.id)}
                                 className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
+                                disabled={timerState?.answerRevealed}
                               >
-                                🎊 Reveal Answer
+                                {timerState?.answerRevealed ? '✨ Answer Revealed' : '🎊 Reveal Answer & Distribute'}
                               </Button>
                             )}
                           </div>
@@ -820,27 +819,47 @@ export default function QuestionsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleQuestion(q.id, q.isEnabled)}
-                        >
-                          {q.isEnabled ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteQuestion(q.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditQuestion(q)}
-                        >
-                          <Pencil className="h-4 w-4 text-blue-600" />
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResetQuestion(q.id, q.title)}
+                            className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700 h-8 w-8 p-0"
+                            title="Reset Question (Clear Answers & Revert Scores)"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditQuestion(q)}
+                            className="h-8 w-8 p-0"
+                            title="Edit"
+                          >
+                            <Pencil className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleToggleQuestion(q.id, q.isEnabled)}
+                            className={`h-8 w-8 p-0 ${q.isEnabled ? 'text-green-600 border-green-200 hover:bg-green-50' : 'text-gray-400 border-gray-200'}`}
+                            title={q.isEnabled ? "Disable" : "Enable"}
+                          >
+                            {q.isEnabled ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteQuestion(q.id)}
+                            className="h-8 w-8 p-0 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -854,6 +873,9 @@ export default function QuestionsPage() {
       {/* MCQ Results Dialog */}
       <Dialog open={showResultsDialog} onOpenChange={setShowResultsDialog}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bid Round Results</DialogTitle>
+          </DialogHeader>
           {mcqResults && mcqResults.teamResults && (
             <McqResultsTable
               correctAnswer={mcqResults.correctAnswer}
