@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { questions } from '../db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, sql } from 'drizzle-orm';
 
 export async function fixAllQuestions() {
   try {
@@ -92,31 +92,18 @@ export async function fixAllQuestions() {
     if (qMatch) updates.push({ id: qMatch.id, num: 13 });
 
     // EXECUTE UPDATES
-    console.log('--- Applying Order ---');
-    for (const update of updates) {
-      // Check if currently occupied to avoid unique constraint errors?
-      // Best to move everything to temporary negative numbers first, then to correct positive numbers?
-      // Or just strict update.
-      // Let's try direct update. If collision, we might fail.
-      // Safer: 
-      // 1. Update target ID to target Num. 
-      // If another Q has target Num, swap? 
-      // Simplest: Update all to distinct high numbers first?
-    }
+    console.log('--- Applying Order (Safe Mode) ---');
 
-    // Actually, let's just do it one by one and hope `questionNumber` isn't unique constraint (it usually is or should be).
-    // If it is unique, we must be careful.
-
-    // Better strategy:
-    // 1. Set all target questions to negative of their target number (e.g. -1, -2).
-    // 2. Then set them to positive.
-
-    for (const update of updates) {
+    // 1. Shift ALL questions to a safe numbering space to avoid collisions
+    // We use -1000 - index
+    for (const [index, q] of allQuestions.entries()) {
       await db.update(questions)
-        .set({ questionNumber: -update.num })
-        .where(eq(questions.id, update.id));
+        .set({ questionNumber: -1000 - index })
+        .where(eq(questions.id, q.id));
     }
+    console.log('✅ Temporary shift complete. Reassigning...');
 
+    // 2. Assign correct numbers
     for (const update of updates) {
       await db.update(questions)
         .set({ questionNumber: update.num })
@@ -124,8 +111,14 @@ export async function fixAllQuestions() {
       console.log(`✅ Assigned Q${update.num} to ${update.id}`);
     }
 
+    // 3. Log leftovers
+    const leftovers = await db.select().from(questions).where(sql`question_number < 0`);
+    if (leftovers.length > 0) {
+      console.log(`\n⚠️  ${leftovers.length} duplicate/unused questions remain with negative IDs:`);
+      leftovers.forEach(l => console.log(`  ID: ${l.id} (${l.title}) -> Q${l.questionNumber}`));
+    }
+
     console.log('\n✨ Sequence Fix Complete!');
-    console.log('Please checking for missing questions manually if Q6 is absent.');
 
   } catch (error) {
     console.error('Error fixing questions:', error);
