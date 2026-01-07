@@ -163,7 +163,7 @@ export default function GitQuizInterface({
     // Validate and generate output
     const executedCommandStrings = executedNewCommands.map(c => c.command);
     const allExecuted = [
-      ...question.completedCommands.map(cmd => ({ command: cmd, output: '' })),
+      ...(Array.isArray(question.completedCommands) ? question.completedCommands : []).map(cmd => ({ command: cmd, output: '' })),
       ...executedNewCommands
     ];
 
@@ -212,7 +212,7 @@ export default function GitQuizInterface({
     const newExecuted = nextState.map(cmd => {
       const executedCommandStrings = nextState.slice(0, nextState.indexOf(cmd));
       const allExecuted = [
-        ...question.completedCommands.map(c => ({ command: c, output: '' })),
+        ...(Array.isArray(question.completedCommands) ? question.completedCommands : []).map(c => ({ command: c, output: '' })),
       ];
       const { output, isError } = validateAndGenerateOutput(cmd, executedCommandStrings, allExecuted);
       return { command: cmd, output, isError };
@@ -278,7 +278,10 @@ export default function GitQuizInterface({
 
   // All completed commands (pre-completed + newly executed)
   const allCompletedCommands: CompletedCommand[] = [
-    ...question.completedCommands.map(cmd => ({ command: cmd, output: '' })),
+    ...(Array.isArray(question.completedCommands) ? question.completedCommands : []).map(cmd => {
+      const { output, isError } = validateAndGenerateOutput(cmd, [], []);
+      return { command: cmd, output, isError };
+    }),
     ...executedNewCommands
   ];
 

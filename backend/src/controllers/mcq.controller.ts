@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { questions, mcqTimerState, mcqBids, teams } from '../db/schema';
+import { questions, mcqTimerState, mcqBids, teams, quizConfig } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { AuthRequest } from '../middlewares/auth.middleware';
 
@@ -9,10 +9,69 @@ export const getTimerState = async (req: AuthRequest, res: Response): Promise<vo
   try {
     const { questionId } = req.params;
 
-    const [timer] = await db
+    let [timer] = await db
       .select()
       .from(mcqTimerState)
       .where(eq(mcqTimerState.questionId, questionId));
+
+    // Check Global Bid Mode
+    const [config] = await db.select().from(quizConfig).limit(1);
+
+    // Auto-enable if global mode is active and timer not enabled yet
+    if (config?.isBidQuestionActive) {
+      // Verify it's a bid question first
+      const [question] = await db.select().from(questions).where(eq(questions.id, questionId));
+
+      if (question && question.questionType === 'mcq_bidding') {
+        if (!timer) {
+          try {
+            // Create and enable
+            const [newTimer] = await db
+              .insert(mcqTimerState)
+              .values({
+                questionId,
+                bidRoundEnabled: true,
+                isRunning: false,
+                timeRemaining: 10,
+                biddingClosed: false,
+                answerRevealed: false,
+              })
+              .returning();
+            timer = newTimer;
+          } catch (e: any) {
+            // Race condition: Timer might have been created by another request concurrently
+            if (e.code === '23505') { // Unique constraint violation code for Postgres
+              const [existingTimer] = await db
+                .select()
+                .from(mcqTimerState)
+                .where(eq(mcqTimerState.questionId, questionId));
+
+              // Ensure it is enabled if we found it
+              if (existingTimer && !existingTimer.bidRoundEnabled) {
+                const [updated] = await db
+                  .update(mcqTimerState)
+                  .set({ bidRoundEnabled: true })
+                  .where(eq(mcqTimerState.questionId, questionId))
+                  .returning();
+                timer = updated;
+              } else {
+                timer = existingTimer;
+              }
+            } else {
+              throw e; // Rethrow other errors
+            }
+          }
+        } else if (!timer.bidRoundEnabled) {
+          // Update to enable
+          const [updated] = await db
+            .update(mcqTimerState)
+            .set({ bidRoundEnabled: true })
+            .where(eq(mcqTimerState.questionId, questionId))
+            .returning();
+          timer = updated;
+        }
+      }
+    }
 
     res.json({ timerState: timer || null });
   } catch (error) {
@@ -40,6 +99,18 @@ export const enableBidRound = async (req: AuthRequest, res: Response): Promise<v
       .from(mcqTimerState)
       .where(eq(mcqTimerState.questionId, questionId));
 
+    // Enable Global Bid Mode
+    const [config] = await db.select().from(quizConfig).limit(1);
+    if (config) {
+      await db
+        .update(quizConfig)
+        .set({
+          isBidQuestionActive: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(quizConfig.id, config.id));
+    }
+
     if (existing) {
       // Update existing timer
       const [updated] = await db
@@ -51,7 +122,7 @@ export const enableBidRound = async (req: AuthRequest, res: Response): Promise<v
         .where(eq(mcqTimerState.questionId, questionId))
         .returning();
 
-      res.json({ message: 'Bid round enabled', timerState: updated });
+      res.json({ message: 'Bid round enabled (Global Mode Active)', timerState: updated });
     } else {
       // Create new timer
       const [newTimer] = await db
@@ -135,13 +206,15 @@ export const startMcqTimer = async (req: AuthRequest, res: Response): Promise<vo
       return;
     }
 
+    const timerDuration = question.timeLimit || 10;
+
     if (existing) {
       // Update existing timer
       const [updated] = await db
         .update(mcqTimerState)
         .set({
           isRunning: true,
-          timeRemaining: 10,
+          timeRemaining: timerDuration,
           startedAt: new Date(),
           updatedAt: new Date(),
         })
@@ -159,7 +232,7 @@ export const startMcqTimer = async (req: AuthRequest, res: Response): Promise<vo
         .values({
           questionId,
           isRunning: true,
-          timeRemaining: 10,
+          timeRemaining: timerDuration,
           startedAt: new Date(),
           biddingClosed: false,
           answerRevealed: false,
@@ -456,7 +529,12 @@ export const getMcqResults = async (req: Request, res: Response): Promise<void> 
     // Get timer state
     const [timer] = await db.select().from(mcqTimerState).where(eq(mcqTimerState.questionId, questionId));
 
-    if (!timer || !timer.answerRevealed) {
+    // Check visibility: either answer is revealed OR admin has explicitly shown the table
+    const [config] = await db.select().from(quizConfig).limit(1);
+    const isGloballyVisible = config && config.isBidResultsVisible && config.activeBidQuestionId === questionId;
+    const isAnswerRevealed = timer && timer.answerRevealed;
+
+    if (!isAnswerRevealed && !isGloballyVisible) {
       res.status(400).json({ error: 'Answer not revealed yet' });
       return;
     }
@@ -486,10 +564,12 @@ export const getMcqResults = async (req: Request, res: Response): Promise<void> 
           selectedOption: bid.selectedOption,
           bidAmount: bid.bidAmount,
           isCorrect: bid.isCorrect,
+          pointsAwarded: bid.pointsAwarded || 0, // Matched to frontend expectation
           pointsChange: bid.pointsAwarded || 0,
           scoreBefore: bid.isCorrect
             ? team.score - (bid.pointsAwarded || 0)
             : team.score + bid.bidAmount,
+          currentScore: team.score, // Matched to frontend expectation
           scoreAfter: team.score,
         };
       })
@@ -509,3 +589,27 @@ export const getMcqResults = async (req: Request, res: Response): Promise<void> 
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// Disable Global Bid Mode (End Segment)
+export const disableBidMode = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const [config] = await db.select().from(quizConfig).limit(1);
+
+    if (config) {
+      await db
+        .update(quizConfig)
+        .set({
+          isBidQuestionActive: false,
+          updatedAt: new Date(),
+        })
+        .where(eq(quizConfig.id, config.id));
+    }
+
+    res.json({ message: 'Global Bid Mode disabled' });
+  } catch (error) {
+    console.error('Disable global bid mode error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+

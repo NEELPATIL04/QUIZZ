@@ -50,9 +50,17 @@ export default function McqBiddingChallenge({
   const [submittedBid, setSubmittedBid] = useState<any>(null);
   const [mcqResults, setMcqResults] = useState<any>(null);
 
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     // Poll for timer state
-    const interval = setInterval(fetchTimerState, 500);
+    const initFetch = async () => {
+      await fetchTimerState();
+      setIsLoading(false);
+    };
+    initFetch();
+
+    const interval = setInterval(fetchTimerState, 1000); // Poll every second (relaxed from 500ms to reduce load, since immediate fetch handles the start)
     return () => clearInterval(interval);
   }, [question.id]);
 
@@ -127,15 +135,35 @@ export default function McqBiddingChallenge({
 
   const canBid = !bidSubmitted && timerState && timerState.isRunning && !timerState.biddingClosed;
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
+
   // Show instructions screen if bid round not enabled yet
   if (!timerState || !timerState.bidRoundEnabled) {
-    return <BidRoundInstructions />;
+    return (
+      <BidRoundInstructions
+        onNext={onNext}
+        onPrevious={onPrevious}
+        hasNextQuestion={hasNextQuestion}
+        hasPreviousQuestion={hasPreviousQuestion}
+        nextQuestionIsBidRound={nextQuestionIsBidRound}
+        questionNumber={question.questionNumber}
+        questionTitle={question.title}
+        questionDescription={question.description}
+        questionOptions={question.options}
+      />
+    );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-900 via-cyan-900 to-blue-900 p-8">
       {/* Header with Navigation */}
-      <div className="mb-6 flex items-center justify-between max-w-7xl mx-auto">
+      <div className="mb-6 flex items-center justify-between w-full">
         {/* Left: Next Question Button */}
         <div>
           {hasNextQuestion && onNext && (
@@ -210,7 +238,7 @@ export default function McqBiddingChallenge({
       )}
 
       {/* Main Layout: Question/Options (Left) + Leaderboard (Right) */}
-      <div className="grid grid-cols-3 gap-6 max-w-7xl mx-auto">
+      <div className="grid grid-cols-3 gap-6 w-full">
 
         {/* LEFT SIDE: Question + Options */}
         <div className="col-span-2 space-y-4">

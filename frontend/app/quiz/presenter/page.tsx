@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { Presentation, Lock, Eye, EyeOff } from 'lucide-react';
 import GitBashTerminal from '@/components/GitBashTerminal';
 import ScoreboardOverlay from '@/components/ScoreboardOverlay';
-import McqResultsTable from '@/components/McqResultsTable';
+import BidResultsOverlay from '@/components/BidResultsOverlay';
 
 export default function PresenterPage() {
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
@@ -47,9 +47,10 @@ export default function PresenterPage() {
       setShowScoreboard(data.isScoreboardVisible || false);
 
       // Handle Bid Results Toggle
-      if (data.isBidResultsVisible && data.activeBidQuestionId) {
-        if (!showBidResults || bidResults?.questionId !== data.activeBidQuestionId) {
-          fetchBidResults(data.activeBidQuestionId);
+      if (data.isBidResultsVisible) {
+        // Fetch if not already visible or if we want to poll/refresh
+        if (!showBidResults) {
+          fetchBidResults();
         }
         setShowBidResults(true);
       } else {
@@ -61,16 +62,31 @@ export default function PresenterPage() {
     }
   };
 
-  const fetchBidResults = async (questionId: string) => {
+  const fetchBidResults = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/public/mcq/${questionId}/results`);
+      const res = await fetch('http://localhost:5000/api/public/analytics/bid-round');
       if (res.ok) {
         const data = await res.json();
-        // The endpoint returns { teamResults, correctAnswer, totalLostPoints }
-        // We set the whole object or just teamResults? 
-        // Logic below expects 'bidResults' to be the array or uses it to access properties.
-        // Let's store the full object to access helper fields, but we need to check usage.
-        setBidResults(data);
+        console.log('Bid Analytics Data:', data);
+
+        let results: any[] = [];
+        let latestQ: number | undefined = undefined;
+
+        if (Array.isArray(data)) {
+          results = data;
+        } else {
+          results = data.teamResults || [];
+          latestQ = data.meta?.latestQuestionNumber;
+        }
+
+        // Calculate total pool
+        const totalPool = results.reduce((sum: number, team: any) => sum + (team.totalLost || 0), 0);
+
+        setBidResults({
+          teamResults: results,
+          totalLostPoints: totalPool,
+          questionNumber: latestQ
+        });
       }
     } catch (e) { console.error(e); }
   };
@@ -89,24 +105,11 @@ export default function PresenterPage() {
 
       {/* Bid Results Overlay */}
       {showBidResults && bidResults && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-4xl p-6 bg-white rounded-xl shadow-2xl border-4 border-yellow-500 scale-100 animate-scaleIn">
-            <div className="text-center mb-6">
-              <h2 className="text-4xl font-bold text-slate-900 mb-2">Bid Round Results</h2>
-              <h3 className="text-xl text-slate-600 font-semibold">{bidResults?.teamResults?.[0]?.questionTitle || "Round Complete"}</h3>
-            </div>
-            <div className="max-h-[70vh] overflow-y-auto">
-              {/* Re-using McqResultsTable Component but customized for big screen if needed. 
-                     For now, using the standard component which is responsive. */}
-              {/* We need to transform the data if structure differs, but assuming endpoint returns same structure as admin view */}
-              <McqResultsTable
-                correctAnswer={bidResults?.correctAnswer || "Answer"}
-                teamResults={bidResults?.teamResults || []}
-                totalLostPoints={bidResults?.totalLostPoints || 0}
-              />
-            </div>
-          </div>
-        </div>
+        <BidResultsOverlay
+          teamResults={bidResults.teamResults || []}
+          totalLostPoints={bidResults.totalLostPoints || 0}
+          questionNumber={bidResults.questionNumber}
+        />
       )}
 
       <div className="max-w-7xl mx-auto space-y-8">

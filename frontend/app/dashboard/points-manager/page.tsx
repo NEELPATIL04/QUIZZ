@@ -39,15 +39,17 @@ interface BidAnalytics {
 
 import McqResultsTable from '@/components/McqResultsTable';
 
-// ... (existing helper function if needed, but imports are at top)
-
 export default function PointsManagerPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    // ... existing state
     const [teams, setTeams] = useState<TeamData[]>([]);
     const [config, setConfig] = useState<any>(null);
     const [scoreboardVisible, setScoreboardVisible] = useState(false);
+    const [bidTableVisible, setBidTableVisible] = useState(false);
+
+    // Toggle Loading States
+    const [isTogglingScoreboard, setIsTogglingScoreboard] = useState(false);
+    const [isTogglingBidTable, setIsTogglingBidTable] = useState(false);
 
     // Validation State
     const [isValidating, setIsValidating] = useState(false);
@@ -60,10 +62,6 @@ export default function PointsManagerPage() {
 
     // Bid Analytics State
     const [bidAnalytics, setBidAnalytics] = useState<BidAnalytics[]>([]);
-
-    // Latest Results State
-    const [showResultsDialog, setShowResultsDialog] = useState(false);
-    const [latestResults, setLatestResults] = useState<any>(null);
 
     useEffect(() => {
         fetchData();
@@ -83,7 +81,16 @@ export default function PointsManagerPage() {
 
             setTeams(teamsData.sort((a: any, b: any) => b.score - a.score)); // Sort by score DESC
             setConfig(configData);
-            setScoreboardVisible(configData.isScoreboardVisible);
+
+            // Only update if we are not currently toggling to avoid jitter
+            if (!isTogglingScoreboard) {
+                setScoreboardVisible(configData.isScoreboardVisible);
+            }
+            if (!isTogglingBidTable) {
+                if (configData.hasOwnProperty('isBidResultsVisible')) {
+                    setBidTableVisible(configData.isBidResultsVisible);
+                }
+            }
         } catch (error) {
             console.error('Fetch error:', error);
         } finally {
@@ -100,91 +107,71 @@ export default function PointsManagerPage() {
         } catch (e) { console.error(e); }
     };
 
-    const handleToggleBidResults = async (visible: boolean) => {
+    const handleToggleBidRoundTable = async () => {
+        if (isTogglingBidTable) return;
+        setIsTogglingBidTable(true);
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            if (!latestResults || !latestResults.questionId) {
-                alert("No results loaded to show");
-                return;
+            const newBidTableState = !bidTableVisible;
+
+            // Optimistic update
+            if (newBidTableState) {
+                setScoreboardVisible(false);
+                setBidTableVisible(true);
+            } else {
+                setBidTableVisible(false);
             }
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/quiz/scoreboard/toggle-bid-results`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    visible,
-                    questionId: latestResults.questionId
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to toggle bid results');
+            if (newBidTableState) {
+                // Reveal Bid Table -> Hide Scoreboard
+                await api.toggleScoreboard(token, false);
             }
 
-            const data = await response.json();
-            alert(data.message);
+            // Toggle Bid Table - Backend now handles ID resolution if visible=true
+            await api.toggleBidResults(token, newBidTableState);
 
         } catch (error) {
-            console.error('Toggle bid results error:', error);
-            alert('Failed to toggle bid results');
-        }
-    };
-
-    const handleViewLatestResults = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            // 1. Get all questions to find the latest MCQ
-            const questions = await api.getQuestions(token);
-            // Sort by number desc to find latest
-            const mcqQuestions = questions
-                .filter((q: any) => q.questionType === 'mcq_bidding')
-                .sort((a: any, b: any) => b.questionNumber - a.questionNumber);
-
-            if (mcqQuestions.length === 0) {
-                alert('No bid round questions found.');
-                return;
-            }
-
-            const latestMcq = mcqQuestions[0];
-
-            // 2. Fetch results for this question
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/quiz/questions/${latestMcq.id}/results`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            if (!response.ok) throw new Error('Failed to fetch results');
-            const data = await response.json();
-
-            setLatestResults({
-                teamResults: data,
-                questionTitle: latestMcq.title,
-                questionId: latestMcq.id
-            });
-            setShowResultsDialog(true);
-        } catch (error) {
-            console.error('Error fetching latest results:', error);
-            alert('Failed to load latest bid results');
+            console.error('Toggle bid table error:', error);
+            alert('Failed to toggle bid table');
+            setBidTableVisible(bidTableVisible); // Revert
+        } finally {
+            setIsTogglingBidTable(false);
         }
     };
 
     const handleToggleScoreboard = async () => {
+        if (isTogglingScoreboard) return;
+        setIsTogglingScoreboard(true);
         try {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            const newState = !scoreboardVisible;
-            await api.toggleScoreboard(token, newState);
-            setScoreboardVisible(newState);
+            const newScoreboardState = !scoreboardVisible;
+
+            // Optimistic update
+            if (newScoreboardState) {
+                setBidTableVisible(false);
+                setScoreboardVisible(true);
+            } else {
+                setScoreboardVisible(false);
+            }
+
+            if (newScoreboardState) {
+                // Reveal Scoreboard -> Hide Bid Table
+                // We use the new API method. Passing visible=false is enough.
+                await api.toggleBidResults(token, false);
+            }
+
+            await api.toggleScoreboard(token, newScoreboardState);
+
         } catch (error) {
             console.error('Toggle error:', error);
             alert('Failed to toggle scoreboard');
+            setScoreboardVisible(scoreboardVisible); // Revert
+        } finally {
+            setIsTogglingScoreboard(false);
         }
     };
 
@@ -258,19 +245,21 @@ export default function PointsManagerPage() {
                 </div>
                 <div className="flex gap-2 flex-wrap">
                     <Button
-                        variant="outline"
-                        onClick={handleViewLatestResults}
-                        className="w-full md:w-auto bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200"
+                        variant={bidTableVisible ? "destructive" : "outline"}
+                        onClick={handleToggleBidRoundTable}
+                        disabled={isTogglingBidTable || isTogglingScoreboard}
+                        className={`w-full md:w-auto ${!bidTableVisible ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200' : ''}`}
                     >
-                        <Monitor className="w-4 h-4 mr-2" />
-                        Latest Bid Table
+                        {isTogglingBidTable ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Monitor className="w-4 h-4 mr-2" />}
+                        {bidTableVisible ? 'Hide Bid Table' : 'Reveal Bid Round Table'}
                     </Button>
                     <Button
                         variant={scoreboardVisible ? "destructive" : "default"}
                         onClick={handleToggleScoreboard}
+                        disabled={isTogglingScoreboard || isTogglingBidTable}
                         className="w-full md:w-auto"
                     >
-                        <Monitor className="w-4 h-4 mr-2" />
+                        {isTogglingScoreboard ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Monitor className="w-4 h-4 mr-2" />}
                         {scoreboardVisible ? 'Hide Scoreboard' : 'Reveal Scoreboard'}
                     </Button>
                     <Button
@@ -430,35 +419,6 @@ export default function PointsManagerPage() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
                         <Button onClick={handleSaveScore}><Save className="w-4 h-4 mr-2" /> Save Score</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Results Dialog */}
-            <Dialog open={showResultsDialog} onOpenChange={setShowResultsDialog}>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>Bid Round Results: {latestResults?.questionTitle}</DialogTitle>
-                    </DialogHeader>
-                    {latestResults && latestResults.teamResults && (
-                        <McqResultsTable
-                            correctAnswer={latestResults.teamResults[0]?.correctAnswer || "Answer"}
-                            teamResults={latestResults.teamResults}
-                            totalLostPoints={latestResults.teamResults.reduce((sum: number, r: any) => sum + (r.pointsChange < 0 ? Math.abs(r.pointsChange) : 0), 0)}
-                        />
-                    )}
-                    <DialogFooter>
-                        <div className="flex justify-between w-full">
-                            <Button variant="destructive" onClick={() => handleToggleBidResults(false)}>
-                                Hide on Presenter
-                            </Button>
-                            <div className="flex gap-2">
-                                <Button variant="default" onClick={() => handleToggleBidResults(true)}>
-                                    Reveal on Presenter
-                                </Button>
-                                <Button variant="outline" onClick={() => setShowResultsDialog(false)}>Close</Button>
-                            </div>
-                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

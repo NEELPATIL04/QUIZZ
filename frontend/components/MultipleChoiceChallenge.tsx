@@ -135,7 +135,7 @@ export default function MultipleChoiceChallenge({
                 </div>
             </div>
 
-            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Code Snippet / Description */}
                 <Card className="bg-slate-900 border border-slate-700 shadow-xl overflow-hidden">
                     <CardContent className="p-6">
@@ -176,9 +176,9 @@ export default function MultipleChoiceChallenge({
                                     )}
 
                                     <div className="grid grid-cols-1 gap-3">
-                                        {question.options.map((option) => (
+                                        {question.options.map((option, index) => (
                                             <button
-                                                key={option.key}
+                                                key={`${question.id}-option-${index}-${option.key}`}
                                                 onClick={() => handleOptionClick(option.key)}
                                                 disabled={isSubmitted || !isController}
                                                 className={`w-full text-left p-4 rounded-xl border-2 transition-all duration-200 relative overflow-hidden group

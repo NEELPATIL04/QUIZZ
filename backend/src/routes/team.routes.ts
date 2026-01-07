@@ -9,7 +9,7 @@ import {
   joinTeam,
   getPublicScoreboard,
 } from '../controllers/team.controller';
-import { getQuizConfig } from '../controllers/quiz.controller';
+import { getQuizConfig, getPublicBidAnalytics } from '../controllers/quiz.controller';
 import { submitBid, getTimerState, getMcqResults } from '../controllers/mcq.controller';
 
 const router = Router();
@@ -29,5 +29,6 @@ router.get('/scoreboard', getPublicScoreboard);
 router.post('/mcq/bid', submitBid);
 router.get('/mcq/:questionId/timer', getTimerState as any);
 router.get('/mcq/:questionId/results', getMcqResults);
+router.get('/analytics/bid-round', getPublicBidAnalytics);
 
 export default router;

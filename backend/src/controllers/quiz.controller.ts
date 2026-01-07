@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { db } from '../db';
 import { quizConfig, teams, questions, teamMembers, teamAnswers, mcqBids, mcqTimerState } from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and } from 'drizzle-orm';
 import { AuthRequest } from '../middlewares/auth.middleware';
 
 // Get quiz configuration
@@ -73,7 +73,22 @@ export const updateQuizConfig = async (req: AuthRequest, res: Response): Promise
 
 export const toggleBidResults = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { visible, questionId } = req.body;
+    const { visible } = req.body; // Logic Simplification: we primarily just need visible
+    let { questionId } = req.body;
+
+    // If making visible and no questionId provided, find the latest one automatically (Like Scoreboard logic)
+    if (visible && !questionId) {
+      const [latestBidQuestion] = await db
+        .select()
+        .from(questions)
+        .where(eq(questions.questionType, 'mcq_bidding'))
+        .orderBy(sql`${questions.questionNumber} DESC`)
+        .limit(1);
+
+      if (latestBidQuestion) {
+        questionId = latestBidQuestion.id;
+      }
+    }
 
     const [existingConfig] = await db.select().from(quizConfig).limit(1);
 
@@ -86,7 +101,10 @@ export const toggleBidResults = async (req: AuthRequest, res: Response): Promise
       await db.update(quizConfig)
         .set({
           isBidResultsVisible: visible,
-          activeBidQuestionId: questionId || null,
+          activeBidQuestionId: questionId || existingConfig.activeBidQuestionId, // Keep existing if null passed on hide? No, usually hiding doesn't matter.
+          // Let's explicitly set it. If hiding, we can keep the old one or set null.
+          // Setting null on hide is safer to avoid showing stale data if re-enabled without ID.
+          // But if we re-enable via this simplified logic, we find it again.
           updatedAt: new Date(),
         })
         .where(eq(quizConfig.id, existingConfig.id));
@@ -94,7 +112,8 @@ export const toggleBidResults = async (req: AuthRequest, res: Response): Promise
 
     res.json({
       message: visible ? 'Bid results revealed' : 'Bid results hidden',
-      isBidResultsVisible: visible
+      isBidResultsVisible: visible,
+      activeBidQuestionId: questionId
     });
   } catch (error) {
     console.error('Toggle bid results error:', error);
@@ -280,18 +299,33 @@ export const updateQuestion = async (req: AuthRequest, res: Response): Promise<v
 // Toggle question enable/disable
 export const toggleQuestionStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    const { questionId } = req.params;
     const { isEnabled } = req.body;
 
     const [updated] = await db
       .update(questions)
       .set({ isEnabled })
-      .where(eq(questions.id, id))
+      .where(eq(questions.id, questionId))
       .returning();
 
-    res.json({ message: 'Question status updated', question: updated });
+    res.json({ message: 'Question status updated', questionId, isEnabled });
   } catch (error) {
-    console.error('Toggle question error:', error);
+    console.error('Toggle question status error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Toggle question flag
+export const toggleQuestionFlag = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { questionId } = req.params;
+    const { isFlagged } = req.body;
+
+    await db.update(questions).set({ isFlagged }).where(eq(questions.id, questionId));
+
+    res.json({ message: 'Question flag updated', questionId, isFlagged });
+  } catch (error) {
+    console.error('Toggle question flag error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -821,6 +855,201 @@ export const getBidRoundAnalytics = async (req: AuthRequest, res: Response): Pro
     res.json(analytics);
   } catch (error) {
     console.error('Bid analytics error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Public Bid Analytics (secured by visibility flag)
+export const getPublicBidAnalytics = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    // Check if results are visible
+    const [config] = await db.select().from(quizConfig).limit(1);
+    if (!config || !config.isBidResultsVisible) {
+      res.status(403).json({ error: 'Bid results are not visible' });
+      return;
+    }
+
+    // Get latest bid question number for context
+    const [latestBidQ] = await db
+      .select({ number: questions.questionNumber })
+      .from(questions)
+      .where(eq(questions.questionType, 'mcq_bidding'))
+      .orderBy(sql`${questions.questionNumber} DESC`)
+      .limit(1);
+
+    const latestQuestionNumber = latestBidQ?.number || 0;
+
+    // Reuse logic from admin analytics (copy-paste for independence or call shared function if we refactored)
+    // For safety and speed, we'll duplicate the read-only logic
+    const allTeams = await db.select().from(teams).orderBy(teams.teamNumber);
+
+    // ... logic same as above ...
+    const analytics = await Promise.all(
+      allTeams.map(async (team) => {
+        const bids = await db
+          .select()
+          .from(mcqBids)
+          .where(eq(mcqBids.teamId, team.id));
+
+        const totalBidAmount = bids.reduce((sum, b) => sum + b.bidAmount, 0);
+        const totalWon = bids
+          .filter((b) => (b.pointsAwarded || 0) > 0)
+          .reduce((sum, b) => sum + (b.pointsAwarded || 0), 0);
+
+        const totalLost = bids
+          .filter((b) => (b.pointsAwarded || 0) < 0)
+          .reduce((sum, b) => sum + Math.abs(b.pointsAwarded || 0), 0);
+
+        const netBidChange = totalWon - totalLost;
+        // Pre-bid score is everything else (Current - Net Change from bids)
+        const preBidScore = team.score - netBidChange;
+
+        return {
+          teamId: team.id,
+          teamName: team.teamName,
+          teamNumber: team.teamNumber,
+          preBidScore,
+          totalBidAmount,
+          totalWon,
+          totalLost,
+          netBidChange,
+          currentScore: team.score,
+        };
+      })
+    );
+
+    res.json({
+      teamResults: analytics,
+      meta: {
+        latestQuestionNumber
+      }
+    });
+  } catch (error) {
+    console.error('Public bid analytics error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+// Reorder questions
+export const reorderQuestions = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { questionIds } = req.body;
+
+    if (!Array.isArray(questionIds)) {
+      res.status(400).json({ error: 'Invalid data format' });
+      return;
+    }
+
+    // Process updates sequentially to avoid constraints (or use a transaction)
+    // Simple approach: Updating each directly might conflict specific numbers if just swapping.
+    // Better: Update all to temporary negative numbers, then to correct positive numbers? 
+    // Or just updating in a transaction is usually fine if constraints are deferrable (default postgres not always).
+    // Let's safe-update: 
+    // 1. Get all questions involved.
+    // 2. Update their numbers based on the index in the array.
+
+    // To safe-guard unique constraint on questionNumber:
+    // We can update them one by one. If we just swap 1 and 2, updating 1 to 2 fails immediately.
+    // Strategy: Update all affected questions to (target + 10000), then update to (target).
+
+    await db.transaction(async (tx) => {
+      // First pass: Move to temporary space
+      for (let i = 0; i < questionIds.length; i++) {
+        await tx.update(questions)
+          .set({ questionNumber: 10000 + i + 1 })
+          .where(eq(questions.id, questionIds[i]));
+      }
+
+      // Second pass: Move to final space
+      for (let i = 0; i < questionIds.length; i++) {
+        await tx.update(questions)
+          .set({ questionNumber: i + 1 })
+          .where(eq(questions.id, questionIds[i]));
+      }
+    });
+
+    res.json({ message: 'Questions reordered successfully' });
+  } catch (error) {
+    console.error('Reorder questions error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// Convert question to type (specifically for Bid Round)
+export const convertQuestionToBid = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Check if it exists
+    const [question] = await db.select().from(questions).where(eq(questions.id, id));
+    if (!question) {
+      res.status(404).json({ error: 'Question not found' });
+      return;
+    }
+
+    // Update type to mcq_bidding
+    // We retain other properties. Admin might need to edit it to check correct answer format if it was different.
+    const [updated] = await db
+      .update(questions)
+      .set({
+        questionType: 'mcq_bidding',
+        // Ensure options is valid JSON if it wasn't? Assuming it is for most types.
+        // Also ensure timer state exists
+      })
+      .where(eq(questions.id, id))
+      .returning();
+
+    // Ensure Timer State exists for this new Bid Question
+    const [timer] = await db.select().from(mcqTimerState).where(eq(mcqTimerState.questionId, id));
+    if (!timer) {
+      await db.insert(mcqTimerState).values({
+        questionId: id,
+        timeRemaining: 10,
+        bidRoundEnabled: false // Default to disabled so admin has to click enable
+      });
+    }
+
+    res.json({ message: 'Question converted to Bid Round', question: updated });
+  } catch (error) {
+    console.error('Convert question error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+// Convert question to Normal (revert from Bid Round)
+export const convertQuestionToNormal = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    // Check if it exists
+    const [question] = await db.select().from(questions).where(eq(questions.id, id));
+    if (!question) {
+      res.status(404).json({ error: 'Question not found' });
+      return;
+    }
+
+    if (question.questionType !== 'mcq_bidding') {
+      res.status(400).json({ error: 'Question is not a Bid Round question' });
+      return;
+    }
+
+    // Update type to multiple_choice (default for MCQ style)
+    const [updated] = await db
+      .update(questions)
+      .set({
+        questionType: 'multiple_choice',
+      })
+      .where(eq(questions.id, id))
+      .returning();
+
+    // Cleanup Bid Round specific data
+    // 1. Delete Timer State
+    await db.delete(mcqTimerState).where(eq(mcqTimerState.questionId, id));
+
+    // 2. Delete existing Bids (optional, but cleaner to remove invalid bid data)
+    await db.delete(mcqBids).where(eq(mcqBids.questionId, id));
+
+    res.json({ message: 'Question converted to Normal (Multiple Choice)', question: updated });
+  } catch (error) {
+    console.error('Convert question to normal error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

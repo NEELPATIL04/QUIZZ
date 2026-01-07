@@ -37,6 +37,31 @@ export const api = {
     }
 
     return response.json();
+    return response.json();
+  },
+
+  async post(endpoint: string, data: any): Promise<any> {
+    const token = localStorage.getItem('token');
+    const headers: any = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || error.message || 'Request failed');
+    }
+
+    return response.json();
   },
 
   async logout(): Promise<void> {
@@ -213,6 +238,20 @@ export const api = {
     return response.json();
   },
 
+  async toggleQuestionFlag(token: string, questionId: string, isFlagged: boolean) {
+    const response = await fetch(`${API_URL}/quiz/questions/${questionId}/flag`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ isFlagged }),
+    });
+    if (!response.ok) throw new Error('Failed to toggle question flag');
+    return response.json();
+  },
+
   async deleteQuestion(token: string, questionId: string) {
     const response = await fetch(`${API_URL}/quiz/questions/${questionId}`, {
       method: 'DELETE',
@@ -232,10 +271,9 @@ export const api = {
     return response.json();
   },
 
-  // Public APIs (no auth)
   async getPublicTeams() {
     const response = await fetch(`${API_URL}/public/teams`);
-    if (!response.ok) throw new Error('Failed to get teams');
+    if (!response.ok) throw new Error('Failed to fetch teams');
     return response.json();
   },
 
@@ -245,11 +283,11 @@ export const api = {
     return response.json();
   },
 
-  async submitAnswer(teamNumber: number, questionId: string, answer: string | string[], timeTaken?: number, timeStarted?: Date) {
+  async submitAnswer(teamNumber: number, questionId: string, answer: any, timeTaken?: number, startTime?: number | Date) {
     const response = await fetch(`${API_URL}/public/answers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teamNumber, questionId, answer, timeTaken, timeStarted }),
+      body: JSON.stringify({ teamNumber, questionId, answer, timeTaken, startTime }),
     });
     if (!response.ok) {
       const error = await response.json();
@@ -351,6 +389,21 @@ export const api = {
     return response.json();
   },
 
+  async toggleBidResults(token: string, visible: boolean, questionId?: string | null) {
+    console.log('Toggling bid results:', { visible, questionId });
+    const response = await fetch(`${API_URL}/quiz/scoreboard/toggle-bid-results`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ visible, questionId }),
+    });
+    if (!response.ok) throw new Error('Failed to toggle bid results');
+    return response.json();
+  },
+
   async validateTeamScores(token: string) {
     const response = await fetch(`${API_URL}/quiz/scores/validate`, {
       method: 'POST',
@@ -367,6 +420,40 @@ export const api = {
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to get bid analytics');
+    return response.json();
+  },
+
+  async reorderQuestions(token: string, questionIds: string[]) {
+    const response = await fetch(`${API_URL}/quiz/questions/reorder`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ questionIds }),
+    });
+    if (!response.ok) throw new Error('Failed to reorder questions');
+    return response.json();
+  },
+
+  async convertQuestionToBid(token: string, questionId: string) {
+    const response = await fetch(`${API_URL}/quiz/questions/${questionId}/convert-to-bid`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to convert question');
+    return response.json();
+  },
+
+  async convertQuestionToNormal(token: string, questionId: string) {
+    const response = await fetch(`${API_URL}/quiz/questions/${questionId}/convert-to-normal`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to convert question');
     return response.json();
   },
 };

@@ -20,7 +20,7 @@ import MatchFollowingChallenge from '@/components/MatchFollowingChallenge';
 export default function TeamQuizPage() {
   const router = useRouter();
   const [teamNumber, setTeamNumber] = useState<number | null>(null);
-  const [teamScore, setTeamScore] = useState<number>(0); // Starting score
+  const [teamScore, setTeamScore] = useState<number>(0);
   const [memberRole, setMemberRole] = useState<string>('viewer');
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -29,8 +29,8 @@ export default function TeamQuizPage() {
   const [loading, setLoading] = useState(true);
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [timerRunning, setTimerRunning] = useState(false);
-
-
+  const [isQuizEnded, setIsQuizEnded] = useState(false);
+  const [winnerTeam, setWinnerTeam] = useState<any>(null);
 
   useEffect(() => {
     const storedTeamNumber = sessionStorage.getItem('teamNumber');
@@ -44,16 +44,24 @@ export default function TeamQuizPage() {
     const tNum = parseInt(storedTeamNumber);
     setTeamNumber(tNum);
 
-    // Fetch member role
+    const savedIndex = sessionStorage.getItem(`currentQuestionIndex_${tNum}`);
+    if (savedIndex) {
+      setCurrentQuestionIndex(parseInt(savedIndex));
+    }
+
     fetchMemberRole(tNum, storedMemberId);
     fetchQuestions();
     fetchTeamScore(tNum);
   }, []);
 
-  // Polling for score and questions
+  useEffect(() => {
+    if (teamNumber !== null) {
+      sessionStorage.setItem(`currentQuestionIndex_${teamNumber}`, currentQuestionIndex.toString());
+    }
+  }, [currentQuestionIndex, teamNumber]);
+
   useEffect(() => {
     if (!teamNumber) return;
-
     const interval = setInterval(() => {
       fetchQuestions();
       fetchTeamScore(teamNumber);
@@ -61,7 +69,6 @@ export default function TeamQuizPage() {
     return () => clearInterval(interval);
   }, [teamNumber]);
 
-  // Timer: Reset on question change
   useEffect(() => {
     if (questions.length > 0 && currentQuestionIndex < questions.length) {
       const q = questions[currentQuestionIndex];
@@ -73,46 +80,19 @@ export default function TeamQuizPage() {
         setTimerRunning(false);
       }
     }
-  }, [currentQuestionIndex, questions, submittedAnswers]);
+  }, [currentQuestionIndex, questions.length]);
 
-  // Timer: Countdown
   useEffect(() => {
     if (!timerRunning || timerSeconds === null) return;
-
     if (timerSeconds <= 0) {
       setTimerRunning(false);
-      // Auto submit
-      const q = questions[currentQuestionIndex];
-      /* handleInteraction(); // Ensure any pending state updates - actually no, time up means stop */
-      if (q && !submittedAnswers.has(q.id)) {
-        handleSubmitAnswer(q.id, true); // Pass force flag
-      }
       return;
     }
-
     const interval = setInterval(() => {
       setTimerSeconds((prev) => (prev !== null ? prev - 1 : null));
     }, 1000);
     return () => clearInterval(interval);
-  }, [timerRunning, timerSeconds, currentQuestionIndex, questions, submittedAnswers]);
-
-  const handleInteraction = () => {
-    if (
-      timerSeconds !== null &&
-      !timerRunning &&
-      questions.length > 0 &&
-      currentQuestionIndex < questions.length &&
-      !submittedAnswers.has(questions[currentQuestionIndex].id)
-    ) {
-      setTimerRunning(true);
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, [timerRunning, timerSeconds]);
 
   const fetchMemberRole = async (teamNum: number, memberId: string) => {
     try {
@@ -127,11 +107,82 @@ export default function TeamQuizPage() {
     }
   };
 
+  const safeJsonParse = (value: any, fallback: any) => {
+    // Handle null, undefined, or string representations of them
+    if (!value || value === 'undefined' || value === 'null') return fallback;
+
+    // If already parsed, return as-is
+    if (typeof value === 'object') return value;
+
+    // If it's a string, try to parse it
+    if (typeof value === 'string') {
+      // Empty string
+      if (value.trim() === '') return fallback;
+
+      // Check if it looks like JSON (starts with [ or {)
+      const trimmed = value.trim();
+      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return fallback;
+        }
+      }
+
+      // Plain text - return fallback for safety
+      return fallback;
+    }
+
+    return value;
+  };
+
+  const transformOptions = (options: any) => {
+    if (!options || !Array.isArray(options)) return [];
+
+    // If already in correct format (has key and text properties)
+    if (options.length > 0 && typeof options[0] === 'object' && 'key' in options[0] && 'text' in options[0]) {
+      return options;
+    }
+
+    // Transform string array to option objects
+    if (options.length > 0 && typeof options[0] === 'string') {
+      return options.map((text: string, index: number) => ({
+        key: String.fromCharCode(65 + index), // A, B, C, D...
+        text: text
+      }));
+    }
+
+    return options;
+  };
+
   const fetchQuestions = async () => {
     try {
       const data = await api.getEnabledQuestions();
-      // Sort questions by question number
-      const sortedData = data.sort((a: any, b: any) => a.questionNumber - b.questionNumber);
+      const parsedData = data.map((q: any) => {
+        try {
+          const parsedOptions = safeJsonParse(q.options, []);
+          return {
+            ...q,
+            options: transformOptions(parsedOptions),
+            hints: safeJsonParse(q.hints, []),
+            scoringCriteria: safeJsonParse(q.scoringCriteria, {}),
+            initialTree: safeJsonParse(q.initialTree, null),
+            treeStructure: safeJsonParse(q.treeStructure, null),
+            correctTree: safeJsonParse(q.correctTree, null),
+            requiredProperties: safeJsonParse(q.requiredProperties, []),
+            availableCommands: safeJsonParse(q.availableCommands, []),
+            completedCommands: safeJsonParse(q.completedCommands, []),
+            correctAnswer: safeJsonParse(q.correctAnswer, []),
+            availableBlocks: safeJsonParse(q.initialTree, []),
+            codeBlocks: q.questionType === 'true_false_drag_drop' ? safeJsonParse(q.initialTree, []) : safeJsonParse(q.codeBlocks, []),
+            originalHtml: q.story || '',
+          };
+        } catch (e) {
+          console.error("Failed to parse question data", q.id, e);
+          return q;
+        }
+      });
+      const sortedData = parsedData.sort((a: any, b: any) => a.questionNumber - b.questionNumber);
       setQuestions(sortedData);
     } catch (error) {
       console.error('Error fetching questions:', error);
@@ -143,10 +194,8 @@ export default function TeamQuizPage() {
   const fetchTeamScore = async (tNum?: number) => {
     const targetTeamNumber = tNum ?? teamNumber;
     if (!targetTeamNumber) return;
-
     try {
-      const response = await fetch(`http://localhost:5000/api/public/teams`);
-      const teams = await response.json();
+      const teams = await api.getPublicTeams();
       const team = teams.find((t: any) => t.teamNumber === targetTeamNumber);
       if (team) {
         setTeamScore(team.score);
@@ -156,583 +205,140 @@ export default function TeamQuizPage() {
     }
   };
 
-  const handleSubmitAnswer = async (questionId: string, forceSubmit = false) => {
-    if (!teamNumber || (!forceSubmit && !answers[questionId]?.trim())) {
-      if (!forceSubmit) alert('Please enter an answer');
-      return;
-    }
-
-    // Stop timer
-    setTimerRunning(false);
-
+  const fetchWinner = async () => {
     try {
-      const result = await api.submitAnswer(teamNumber, questionId, answers[questionId]);
-
-      setSubmittedAnswers(new Set([...submittedAnswers, questionId]));
-
-      alert(
-        result.isCorrect
-          ? `Correct! You earned ${result.pointsAwarded} points!`
-          : 'Incorrect answer. No points awarded.'
-      );
-
-      // Clear the answer input
-      setAnswers({ ...answers, [questionId]: '' });
-    } catch (error: any) {
-      alert(error.message || 'Failed to submit answer');
+      const teams = await api.getPublicTeams();
+      const sorted = teams.sort((a: any, b: any) => b.score - a.score);
+      if (sorted.length > 0) {
+        setWinnerTeam(sorted[0]);
+      }
+    } catch (e) {
+      console.error("Failed to fetch winner", e);
     }
   };
 
-  if (loading) {
+  const handleNextQuestion = () => {
+    const currentQ = questions[currentQuestionIndex];
+    if (currentQ?.isFlagged) {
+      setIsQuizEnded(true);
+      fetchWinner();
+    } else if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(prev => prev + 1);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  const handlePreviousQuestion = () => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(prev => prev - 1);
+      window.scrollTo(0, 0);
+    }
+  };
+
+  if (isQuizEnded) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-lg">Loading...</div>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4 text-white overflow-hidden relative">
+        <div className="fixed inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-2 h-2 bg-yellow-500 rounded-full animate-bounce delay-100"></div>
+          <div className="absolute top-0 right-1/4 w-3 h-3 bg-red-500 rounded-full animate-pulse delay-200"></div>
+        </div>
+
+        <Card className="w-full max-w-2xl bg-white/10 backdrop-blur-xl border-white/20 text-center p-12">
+          <div className="mb-8 animate-bounce">
+            <span className="text-6xl">🏆</span>
+          </div>
+          <h1 className="text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-orange-500">
+            Quiz Completed!
+          </h1>
+          <p className="text-xl text-gray-200 mb-12">
+            Thank you for participating.
+          </p>
+
+          {winnerTeam && (
+            <div className="bg-white/10 rounded-2xl p-8 border border-yellow-500/30 shadow-[0_0_50px_rgba(234,179,8,0.2)]">
+              <p className="text-sm uppercase tracking-widest text-yellow-400 mb-2">The Winner Is</p>
+              <h2 className="text-4xl font-black text-white mb-2">{winnerTeam.teamName}</h2>
+              <p className="text-2xl text-yellow-300 font-bold">{winnerTeam.score} pts</p>
+            </div>
+          )}
+        </Card>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen">
-      {questions.length === 0 ? (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-          <div className="max-w-4xl mx-auto space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl">Team {teamNumber}</CardTitle>
-                <CardDescription>Answer the questions below</CardDescription>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Lock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-lg font-medium">No questions available yet</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Wait for the admin to enable questions
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <p className="text-slate-600">Loading...</p>
         </div>
-      ) : (
-        <>
-          <>
-            {/* Timer Display */}
-            {timerSeconds !== null && questions[currentQuestionIndex] && !submittedAnswers.has(questions[currentQuestionIndex].id) && (
-              <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-xl border-2 shadow-lg animate-in fade-in slide-in-from-top-4 duration-300 ${timerSeconds <= 10 ? 'bg-red-900/90 border-red-500 text-red-100 animate-pulse' : 'bg-slate-900/90 border-blue-500 text-blue-100'
-                }`}>
-                <div className="flex items-center gap-3">
-                  <Clock className={`w-5 h-5 ${timerSeconds <= 10 ? 'text-red-400' : 'text-blue-400'}`} />
-                  <div className="font-mono text-xl font-bold">
-                    {timerRunning || timerSeconds < (questions[currentQuestionIndex]?.timeLimit || 0) ? formatTime(timerSeconds) : "Start on Interaction"}
-                  </div>
-                </div>
-              </div>
-            )}
+      </div>
+    );
+  }
 
-            {/* Current Question */}
-            <div onClickCapture={handleInteraction} onKeyDownCapture={handleInteraction} onTouchStartCapture={handleInteraction}>
-              {currentQuestionIndex < questions.length && (() => {
-                const q: any = questions[currentQuestionIndex];
-                const isSubmitted = submittedAnswers.has(q.id);
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+        <p className="text-slate-600">Waiting for questions...</p>
+      </div>
+    );
+  }
 
-                // Git Challenge Question
-                if (q.questionType === 'git_challenge') {
-                  const gitQuestion = {
-                    id: q.id,
-                    questionNumber: q.questionNumber,
-                    title: q.title,
-                    story: q.story || '',
-                    availableCommands: q.availableCommands ? JSON.parse(q.availableCommands) : [],
-                    completedCommands: q.completedCommands ? JSON.parse(q.completedCommands) : [],
-                    correctAnswer: q.correctAnswer ? JSON.parse(q.correctAnswer) : [],
-                    points: q.points,
-                  };
+  const currentQuestion = questions[currentQuestionIndex];
+  if (!currentQuestion) return <div>Invalid Question Index</div>;
 
-                  // Check if next question is a bid round
-                  const nextQuestion = currentQuestionIndex < questions.length - 1 ? questions[currentQuestionIndex + 1] : null;
-                  const nextQuestionIsBidRound = nextQuestion?.questionType === 'mcq_bidding';
+  const getCommonProps = () => ({
+    teamNumber: teamNumber!,
+    isController: memberRole === 'controller',
+    onNext: handleNextQuestion,
+    hasNextQuestion: true, // We want the button to appear. If end of quiz, handleNextQuestion triggers end screen.
+    onPrevious: handlePreviousQuestion,
+    hasPreviousQuestion: currentQuestionIndex > 0,
+    onSubmit: async (answer: any, timeTaken?: number, startTime?: number | Date) => {
+      try {
+        const result = await api.submitAnswer(
+          teamNumber!,
+          currentQuestion.id,
+          answer,
+          timeTaken,
+          startTime
+        );
+        setSubmittedAnswers(new Set([...submittedAnswers, currentQuestion.id]));
+        return {
+          isCorrect: result.isCorrect,
+          pointsAwarded: result.pointsAwarded,
+          correctCount: result.correctCount,
+          totalCount: result.totalCount
+        }
+      } catch (e: any) {
+        throw new Error(e.message || "Failed to submit");
+      }
+    }
+  });
 
-                  return (
-                    <div key={q.id}>
-                      <GitQuizInterface
-                        question={gitQuestion}
-                        teamNumber={teamNumber!}
-                        isController={memberRole === 'controller'}
-                        onSubmit={async (answer, timeTaken, startTime) => {
-                          try {
-                            const result = await api.submitAnswer(
-                              teamNumber!,
-                              q.id,
-                              answer,
-                              timeTaken,
-                              startTime
-                            );
-                            setSubmittedAnswers(new Set([...submittedAnswers, q.id]));
-                            return {
-                              isCorrect: result.isCorrect,
-                              pointsAwarded: result.pointsAwarded,
-                            };
-                          } catch (error: any) {
-                            throw new Error(error.message || 'Failed to submit answer');
-                          }
-                        }}
-                        onNext={currentQuestionIndex < questions.length - 1 ? () => setCurrentQuestionIndex(currentQuestionIndex + 1) : undefined}
-                        onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(currentQuestionIndex - 1) : undefined}
-                        hasNextQuestion={currentQuestionIndex < questions.length - 1}
-                        hasPreviousQuestion={currentQuestionIndex > 0}
-                        nextQuestionIsBidRound={nextQuestionIsBidRound}
-                        isSubmitted={isSubmitted}
-                      />
-                    </div>
-                  );
-                }
+  const commonProps = getCommonProps();
 
-                // HTML/CSS Challenge Question
-                if (q.questionType === 'html_css_challenge') {
-                  const htmlCssQuestion = {
-                    id: q.id,
-                    questionNumber: q.questionNumber,
-                    title: q.title,
-                    description: q.description || '',
-                    providedHtml: q.providedHtml || '',
-                    providedCss: q.providedCss || '',
-                    targetSelector: q.targetSelector || '',
-                    idealCss: q.idealCss || '',
-                    requiredProperties: q.requiredProperties ? JSON.parse(q.requiredProperties) : [],
-                    scoringCriteria: q.scoringCriteria ? JSON.parse(q.scoringCriteria) : {},
-                    points: q.points,
-                  };
-
-                  // Check if next question is a bid round
-                  const nextQuestion = currentQuestionIndex < questions.length - 1 ? questions[currentQuestionIndex + 1] : null;
-                  const nextQuestionIsBidRound = nextQuestion?.questionType === 'mcq_bidding';
-
-                  return (
-                    <div key={q.id}>
-                      <HtmlCssChallenge
-                        question={htmlCssQuestion}
-                        teamNumber={teamNumber!}
-                        isController={memberRole === 'controller'}
-                        onSubmit={async (css, timeTaken, startTime) => {
-                          try {
-                            const result = await api.submitAnswer(
-                              teamNumber!,
-                              q.id,
-                              css,
-                              timeTaken,
-                              startTime
-                            );
-                            setSubmittedAnswers(new Set([...submittedAnswers, q.id]));
-                            return {
-                              isCorrect: result.isCorrect,
-                              pointsAwarded: result.pointsAwarded,
-                            };
-                          } catch (error: any) {
-                            throw new Error(error.message || 'Failed to submit answer');
-                          }
-                        }}
-                        onNext={currentQuestionIndex < questions.length - 1 ? () => setCurrentQuestionIndex(currentQuestionIndex + 1) : undefined}
-                        onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(currentQuestionIndex - 1) : undefined}
-                        hasNextQuestion={currentQuestionIndex < questions.length - 1}
-                        hasPreviousQuestion={currentQuestionIndex > 0}
-                        nextQuestionIsBidRound={nextQuestionIsBidRound}
-                        isSubmitted={isSubmitted}
-                      />
-                    </div>
-                  );
-                }
-
-                // Broken HTML Challenge Question (Tree Builder)
-                if (q.questionType === 'broken_html_challenge') {
-                  const availableBlocks = q.initialTree ? JSON.parse(q.initialTree) : [];
-                  const treeStructure = q.treeStructure ? JSON.parse(q.treeStructure) : { id: 'root', tag: 'div', children: [] };
-                  const correctTree = q.correctTree ? JSON.parse(q.correctTree) : { id: 'root', tag: 'div', children: [] };
-
-                  const treeQuestion = {
-                    id: q.id,
-                    questionNumber: q.questionNumber,
-                    title: q.title,
-                    description: q.description || '',
-                    points: q.points,
-                    hints: q.hints ? JSON.parse(q.hints) : [],
-                    originalHtml: q.story || '', // The original HTML code to display
-                    availableBlocks: availableBlocks as any[], // Explicit cast to avoid type errors
-                    treeStructure: treeStructure as any,
-                    correctTree: correctTree as any,
-                  };
-
-                  // Check if next question is a bid round
-                  const nextQuestion = currentQuestionIndex < questions.length - 1 ? questions[currentQuestionIndex + 1] : null;
-                  const nextQuestionIsBidRound = nextQuestion?.questionType === 'mcq_bidding';
-
-                  return (
-                    <div key={q.id}>
-                      <HtmlTreeBuilderFinal
-                        question={treeQuestion}
-                        teamNumber={teamNumber!}
-                        isController={memberRole === 'controller'}
-                        onSubmit={async (tree, timeTaken, startTime) => {
-                          try {
-                            const result = await api.submitAnswer(
-                              teamNumber!,
-                              q.id,
-                              JSON.stringify(tree),
-                              timeTaken,
-                              startTime
-                            );
-                            setSubmittedAnswers(new Set([...submittedAnswers, q.id]));
-                            return {
-                              isCorrect: result.isCorrect,
-                              pointsAwarded: result.pointsAwarded,
-                            };
-                          } catch (error: any) {
-                            throw new Error(error.message || 'Failed to submit answer');
-                          }
-                        }}
-                        onNext={currentQuestionIndex < questions.length - 1 ? () => setCurrentQuestionIndex(currentQuestionIndex + 1) : undefined}
-                        onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(currentQuestionIndex - 1) : undefined}
-                        hasNextQuestion={currentQuestionIndex < questions.length - 1}
-                        hasPreviousQuestion={currentQuestionIndex > 0}
-                        nextQuestionIsBidRound={nextQuestionIsBidRound}
-                        isSubmitted={isSubmitted}
-                      />
-                    </div>
-                  );
-                }
-
-                // JS Engine Challenge Question
-                if (q.questionType === 'js_engine_challenge') {
-                  // Check if next question is a bid round
-                  const nextQuestion = currentQuestionIndex < questions.length - 1 ? questions[currentQuestionIndex + 1] : null;
-                  const nextQuestionIsBidRound = nextQuestion?.questionType === 'mcq_bidding';
-
-                  return (
-                    <div key={q.id}>
-                      <JsEngineChallenge
-                        question={q}
-                        teamNumber={teamNumber!}
-                        isController={memberRole === 'controller'}
-                        onSubmit={async (answer, timeTaken, startTime) => {
-                          try {
-                            const result = await api.submitAnswer(
-                              teamNumber!,
-                              q.id,
-                              answer,
-                              timeTaken,
-                              startTime
-                            );
-                            setSubmittedAnswers(new Set([...submittedAnswers, q.id]));
-                            return {
-                              isCorrect: result.isCorrect,
-                              pointsAwarded: result.pointsAwarded,
-                            };
-                          } catch (error: any) {
-                            throw new Error(error.message || 'Failed to submit answer');
-                          }
-                        }}
-                        onNext={currentQuestionIndex < questions.length - 1 ? () => setCurrentQuestionIndex(currentQuestionIndex + 1) : undefined}
-                        onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(currentQuestionIndex - 1) : undefined}
-                        hasNextQuestion={currentQuestionIndex < questions.length - 1}
-                        hasPreviousQuestion={currentQuestionIndex > 0}
-                        nextQuestionIsBidRound={nextQuestionIsBidRound}
-                        isSubmitted={isSubmitted}
-                      />
-                    </div>
-                  );
-                }
-
-                // True/False Drag Drop Challenge
-                if (q.questionType === 'true_false_drag_drop') {
-                  const codeBlocks = q.initialTree ? JSON.parse(q.initialTree) : [];
-
-                  const trueFalseQuestion = {
-                    id: q.id,
-                    questionNumber: q.questionNumber,
-                    title: q.title,
-                    description: q.description || '',
-                    hints: q.hints ? JSON.parse(q.hints) : [],
-                    codeBlocks: codeBlocks,
-                    points: q.points,
-                  };
-
-                  // Check if next question is a bid round
-                  const nextQuestion = currentQuestionIndex < questions.length - 1 ? questions[currentQuestionIndex + 1] : null;
-                  const nextQuestionIsBidRound = nextQuestion?.questionType === 'mcq_bidding';
-
-                  return (
-                    <div key={q.id}>
-                      <TrueFalseDragDropChallenge
-                        question={trueFalseQuestion}
-                        teamNumber={teamNumber!}
-                        isController={memberRole === 'controller'}
-                        onSubmit={async (answer, timeTaken, startTime) => {
-                          try {
-                            const result = await api.submitAnswer(
-                              teamNumber!,
-                              q.id,
-                              JSON.stringify(answer),
-                              timeTaken,
-                              startTime
-                            );
-                            setSubmittedAnswers(new Set([...submittedAnswers, q.id]));
-                            return {
-                              isCorrect: result.isCorrect,
-                              pointsAwarded: result.pointsAwarded,
-                              correctCount: result.correctCount || 0,
-                              totalCount: result.totalCount || codeBlocks.length,
-                            };
-                          } catch (error: any) {
-                            throw new Error(error.message || 'Failed to submit answer');
-                          }
-                        }}
-                        onNext={currentQuestionIndex < questions.length - 1 ? () => setCurrentQuestionIndex(currentQuestionIndex + 1) : undefined}
-                        onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(currentQuestionIndex - 1) : undefined}
-                        hasNextQuestion={currentQuestionIndex < questions.length - 1}
-                        hasPreviousQuestion={currentQuestionIndex > 0}
-                        nextQuestionIsBidRound={nextQuestionIsBidRound}
-                        isSubmitted={isSubmitted}
-                      />
-                    </div>
-                  );
-                }
-
-                // Multiple Choice Question (New)
-                if (q.questionType === 'multiple_choice') {
-                  // Determine if multi-select
-                  let isMultiSelect = false;
-                  try {
-                    const parsed = JSON.parse(q.correctAnswer || '');
-                    if (Array.isArray(parsed)) {
-                      isMultiSelect = true;
-                    }
-                  } catch (e) {
-                    // Not a json array, likely single string
-                  }
-
-                  const mcqQuestion = {
-                    id: q.id,
-                    questionNumber: q.questionNumber,
-                    title: q.title,
-                    description: q.description || '',
-                    options: q.options ? JSON.parse(q.options) : [],
-                    points: q.points,
-                  };
-
-                  // Check if next question is a bid round
-                  const nextQuestion = currentQuestionIndex < questions.length - 1 ? questions[currentQuestionIndex + 1] : null;
-                  const nextQuestionIsBidRound = nextQuestion?.questionType === 'mcq_bidding';
-
-                  return (
-                    <div key={q.id}>
-                      <MultipleChoiceChallenge
-                        question={mcqQuestion}
-                        teamNumber={teamNumber!}
-                        isController={memberRole === 'controller'}
-                        onSubmit={async (answer, timeTaken, startTime) => {
-                          try {
-                            const result = await api.submitAnswer(
-                              teamNumber!,
-                              q.id,
-                              answer,
-                              timeTaken,
-                              startTime
-                            );
-                            setSubmittedAnswers(new Set([...submittedAnswers, q.id]));
-                            return {
-                              isCorrect: result.isCorrect,
-                              pointsAwarded: result.pointsAwarded,
-                            };
-                          } catch (error: any) {
-                            throw new Error(error.message || 'Failed to submit answer');
-                          }
-                        }}
-                        onNext={currentQuestionIndex < questions.length - 1 ? () => setCurrentQuestionIndex(currentQuestionIndex + 1) : undefined}
-                        onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(currentQuestionIndex - 1) : undefined}
-                        hasNextQuestion={currentQuestionIndex < questions.length - 1}
-                        hasPreviousQuestion={currentQuestionIndex > 0}
-                        nextQuestionIsBidRound={nextQuestionIsBidRound}
-                        isSubmitted={isSubmitted}
-                        isMultiSelect={isMultiSelect}
-                      />
-                    </div>
-                  );
-                }
-
-                // MCQ Bidding Question
-                if (q.questionType === 'mcq_bidding') {
-                  const mcqQuestion = {
-                    id: q.id,
-                    questionNumber: q.questionNumber,
-                    title: q.title,
-                    description: q.description || '',
-                    options: q.options ? JSON.parse(q.options) : [],
-                    points: q.points,
-                  };
-
-                  // Check if next question is a bid round
-                  const nextQuestion = currentQuestionIndex < questions.length - 1 ? questions[currentQuestionIndex + 1] : null;
-                  const nextQuestionIsBidRound = nextQuestion?.questionType === 'mcq_bidding';
-
-                  return (
-                    <div key={q.id}>
-                      <McqBiddingChallenge
-                        question={mcqQuestion}
-                        teamNumber={teamNumber!}
-                        teamScore={teamScore}
-                        isController={memberRole === 'controller'}
-                        onBidSubmitted={() => fetchTeamScore()}
-                        onNext={currentQuestionIndex < questions.length - 1 ? () => setCurrentQuestionIndex(currentQuestionIndex + 1) : undefined}
-                        onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(currentQuestionIndex - 1) : undefined}
-                        hasNextQuestion={currentQuestionIndex < questions.length - 1}
-                        hasPreviousQuestion={currentQuestionIndex > 0}
-                        nextQuestionIsBidRound={nextQuestionIsBidRound}
-                      />
-                    </div>
-                  );
-                }
-
-                // Match Following Challenge Question
-                if (q.questionType === 'match_following') {
-                  const matchQuestion = {
-                    id: q.id,
-                    title: q.title,
-                    description: q.description || '',
-                    options: q.options ? JSON.parse(q.options) : [],
-                    points: q.points,
-                  };
-
-                  // Check if next question is a bid round
-                  const nextQuestion = currentQuestionIndex < questions.length - 1 ? questions[currentQuestionIndex + 1] : null;
-                  const nextQuestionIsBidRound = nextQuestion?.questionType === 'mcq_bidding';
-
-                  return (
-                    <div key={q.id}>
-                      <MatchFollowingChallenge
-                        question={matchQuestion}
-                        teamNumber={teamNumber!}
-                        isController={memberRole === 'controller'}
-                        onSubmit={async (answer, timeTaken, startTime) => {
-                          try {
-                            const result = await api.submitAnswer(
-                              teamNumber!,
-                              q.id,
-                              JSON.stringify(answer),
-                              timeTaken,
-                              startTime
-                            );
-                            setSubmittedAnswers(new Set([...submittedAnswers, q.id]));
-                            return {
-                              isCorrect: result.isCorrect,
-                              pointsAwarded: result.pointsAwarded,
-                              correctCount: result.correctCount || 0,
-                              totalCount: result.totalCount || 0,
-                            };
-                          } catch (error: any) {
-                            throw new Error(error.message || 'Failed to submit answer');
-                          }
-                        }}
-                        onNext={currentQuestionIndex < questions.length - 1 ? () => setCurrentQuestionIndex(currentQuestionIndex + 1) : undefined}
-                        onPrevious={currentQuestionIndex > 0 ? () => setCurrentQuestionIndex(currentQuestionIndex - 1) : undefined}
-                        hasNextQuestion={currentQuestionIndex < questions.length - 1}
-                        hasPreviousQuestion={currentQuestionIndex > 0}
-                        nextQuestionIsBidRound={nextQuestionIsBidRound}
-                        isSubmitted={isSubmitted}
-                      />
-                    </div>
-                  );
-                }
-
-                // Regular Text Answer Question
-                return (
-                  <div key={q.id} className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-                    <div className="max-w-4xl mx-auto space-y-6">
-                      <Card>
-                        <CardHeader>
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <CardTitle className="text-lg">
-                                Question {q.questionNumber}
-                              </CardTitle>
-                              <CardDescription className="mt-2 text-base">
-                                {q.title}
-                              </CardDescription>
-                              {q.description && (
-                                <p className="text-sm text-muted-foreground mt-2">
-                                  {q.description}
-                                </p>
-                              )}
-                            </div>
-                            <div className="text-right">
-                              <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-                                {q.points} pts
-                              </span>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          {isSubmitted ? (
-                            <div className="flex items-center gap-2 text-green-600">
-                              <CheckCircle className="h-5 w-5" />
-                              <span>Answer submitted</span>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label htmlFor={`answer-${q.id}`}>Your Answer</Label>
-                                <Input
-                                  id={`answer-${q.id}`}
-                                  value={answers[q.id] || ''}
-                                  onChange={(e) =>
-                                    setAnswers({ ...answers, [q.id]: e.target.value })
-                                  }
-                                  placeholder="Type your answer..."
-                                />
-                              </div>
-                              <Button onClick={() => handleSubmitAnswer(q.id)}>
-                                Submit Answer
-                              </Button>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-
-                      {/* Next Question Button */}
-                      <Card>
-                        <CardContent className="py-6">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-muted-foreground">
-                                Question {currentQuestionIndex + 1} of {questions.length}
-                              </p>
-                            </div>
-                            <div className="flex gap-3">
-                              <Button variant="outline" onClick={() => router.push('/quiz')}>
-                                Change Team
-                              </Button>
-                              {currentQuestionIndex < questions.length - 1 ? (
-                                <Button
-                                  onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)}
-                                  disabled={!isSubmitted}
-                                >
-                                  {isSubmitted ? 'Next Question →' : 'Submit answer to continue'}
-                                </Button>
-                              ) : (
-                                <Button disabled variant="outline">
-                                  Last Question
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          </>
-        </>
-      )}
+  return (
+    <div className="min-h-screen bg-slate-50 pb-20">
+      <main className="w-full">
+        {currentQuestion.questionType === 'git_challenge' ? (
+          <GitQuizInterface question={currentQuestion} {...commonProps} />
+        ) : currentQuestion.questionType === 'html_css_challenge' ? (
+          <HtmlCssChallenge question={currentQuestion} {...commonProps} />
+        ) : currentQuestion.questionType === 'js_engine_challenge' ? (
+          <JsEngineChallenge question={currentQuestion} {...commonProps} />
+        ) : currentQuestion.questionType === 'mcq_bidding' ? (
+          <McqBiddingChallenge question={currentQuestion} {...commonProps} teamScore={teamScore} />
+        ) : currentQuestion.questionType === 'broken_html_challenge' ? (
+          <HtmlTreeBuilderFinal question={currentQuestion} {...commonProps} />
+        ) : currentQuestion.questionType === 'true_false_drag_drop' ? (
+          <TrueFalseDragDropChallenge question={currentQuestion} {...commonProps} />
+        ) : currentQuestion.questionType === 'match_following' ? (
+          <MatchFollowingChallenge question={currentQuestion} {...commonProps} />
+        ) : (
+          <MultipleChoiceChallenge question={currentQuestion} {...commonProps} />
+        )}
+      </main>
     </div>
   );
 }

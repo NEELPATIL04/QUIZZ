@@ -1,25 +1,17 @@
+
 import { db } from '../db';
 import { questions } from '../db/schema';
+import { asc } from 'drizzle-orm';
 
 async function checkQuestions() {
-  const result = await db.select().from(questions);
-  console.log('\n📊 Total questions in database:', result.length);
-  console.log('\n' + '='.repeat(80));
+  const allQuestions = await db.select({
+    number: questions.questionNumber,
+    title: questions.title,
+    type: questions.questionType
+  }).from(questions).orderBy(asc(questions.questionNumber));
 
-  result
-    .sort((a, b) => a.questionNumber - b.questionNumber)
-    .forEach(q => {
-      console.log(`Q${q.questionNumber}: ${q.title}`);
-      console.log(`   Type: ${q.questionType} | Points: ${q.points} | Enabled: ${q.isEnabled}`);
-      console.log('');
-    });
-
-  console.log('='.repeat(80) + '\n');
+  console.log('Existing Questions:', allQuestions);
+  process.exit(0);
 }
 
-checkQuestions()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error('Error:', error);
-    process.exit(1);
-  });
+checkQuestions();

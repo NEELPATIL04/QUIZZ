@@ -55,8 +55,12 @@ export default function HtmlTreeBuilderFinal({
   isSubmitted: isSubmittedProp = false,
   nextQuestionIsBidRound = false,
 }: HtmlTreeBuilderProps) {
-  const [userTree, setUserTree] = useState<TreeNode>(JSON.parse(JSON.stringify(question.treeStructure)));
-  const [availableBlocks, setAvailableBlocks] = useState<TreeNode[]>(JSON.parse(JSON.stringify(question.availableBlocks)));
+  const [userTree, setUserTree] = useState<TreeNode>(
+    question.treeStructure ? JSON.parse(JSON.stringify(question.treeStructure)) : { id: 'root', tag: 'html', children: [] }
+  );
+  const [availableBlocks, setAvailableBlocks] = useState<TreeNode[]>(
+    question.availableBlocks && Array.isArray(question.availableBlocks) ? JSON.parse(JSON.stringify(question.availableBlocks)) : []
+  );
   const [draggedBlock, setDraggedBlock] = useState<TreeNode | null>(null);
   const [dragOverNode, setDragOverNode] = useState<string | null>(null);
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);

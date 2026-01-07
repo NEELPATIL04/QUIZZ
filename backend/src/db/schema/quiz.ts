@@ -4,7 +4,7 @@ import { pgTable, uuid, varchar, integer, timestamp, boolean, text, pgEnum, json
 export const teamMemberRoleEnum = pgEnum('team_member_role', ['controller', 'viewer']);
 
 // Question type enum
-export const questionTypeEnum = pgEnum('question_type', ['git_challenge', 'html_css_challenge', 'js_engine_challenge', 'broken_html_challenge', 'mcq_bidding', 'multiple_choice', 'text_answer', 'true_false_drag_drop', 'match_following']);
+export const questionTypeEnum = pgEnum('question_type', ['git_challenge', 'html_css_challenge', 'js_engine_challenge', 'broken_html_challenge', 'mcq_bidding', 'multiple_choice', 'text_answer', 'true_false_drag_drop', 'match_following', 'image_based']);
 
 // Quiz configuration table
 export const quizConfig = pgTable('quiz_config', {
@@ -18,6 +18,7 @@ export const quizConfig = pgTable('quiz_config', {
   isActive: boolean('is_active').notNull().default(false),
   isScoreboardVisible: boolean('is_scoreboard_visible').notNull().default(false),
   isBidResultsVisible: boolean('is_bid_results_visible').notNull().default(false), // Controls bid table reveal
+  isBidQuestionActive: boolean('is_bid_question_active').notNull().default(false), // Global switch for bid round segment
   activeBidQuestionId: uuid('active_bid_question_id'), // Which question's results to show
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -47,20 +48,26 @@ export const questions = pgTable('questions', {
   completedCommands: text('completed_commands'), // JSON array of already completed commands
   // HTML/CSS Challenge fields
   providedHtml: text('provided_html'), // Pre-defined HTML structure
-  providedCss: text('provided_css'), // Pre-defined CSS (body, reset, etc.)
-  targetSelector: varchar('target_selector', { length: 100 }), // CSS selector to style (e.g., ".card")
-  idealCss: text('ideal_css'), // Ideal CSS solution
+  providedCss: text('provided_css'), // Pre-defined CSS
+  targetSelector: varchar('target_selector', { length: 200 }), // Selector to target for CSS challenge
+  idealCss: text('ideal_css'), // The expected CSS properties/values for validation
   requiredProperties: text('required_properties'), // JSON array of required CSS properties
-  scoringCriteria: text('scoring_criteria'), // JSON object with scoring rules
+
+  // JS Engineering Challenge fields
+  scoringCriteria: text('scoring_criteria'), // JSON defining how to score (e.g. test cases)
+
   // Broken HTML Challenge fields
-  initialTree: text('initial_tree'), // JSON array of available blocks to drag
-  treeStructure: text('tree_structure'), // JSON tree structure with empty slots
-  correctTree: text('correct_tree'), // JSON array for correct HTML DOM tree
+  initialTree: text('initial_tree'), // JSON representation of the broken DOM tree
+  treeStructure: text('tree_structure'), // JSON representation of the expected DOM tree structure (for validation)
+  correctTree: text('correct_tree'), // JSON representation of the correct DOM tree (for reference)
+
   hints: text('hints'), // JSON array of hints
   points: integer('points').notNull().default(10),
-  isEnabled: boolean('is_enabled').notNull().default(false), // Admin controls this
-  timeLimit: integer('time_limit'), // Time limit in seconds (null means no limit)
+  isEnabled: boolean('is_enabled').notNull().default(true),
+  isFlagged: boolean('is_flagged').notNull().default(false), // Marks this question as the "End Quiz" trigger
+  timeLimit: integer('time_limit'), // Time limit in seconds
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
 // Team members table (for tracking roles within teams)

@@ -60,7 +60,7 @@ export default function TrueFalseDragDropChallenge({
   const [dragOverZone, setDragOverZone] = useState<'available' | 'true' | 'false' | null>(null);
 
   // Initialize state
-  const [availableBlocks, setAvailableBlocks] = useState<CodeBlock[]>(question.codeBlocks);
+  const [availableBlocks, setAvailableBlocks] = useState<CodeBlock[]>(question.codeBlocks || []);
   const [trueBlocks, setTrueBlocks] = useState<CodeBlock[]>([]);
   const [falseBlocks, setFalseBlocks] = useState<CodeBlock[]>([]);
 
@@ -76,7 +76,7 @@ export default function TrueFalseDragDropChallenge({
   }
 
   const initialState: HistoryState = {
-    available: question.codeBlocks,
+    available: question.codeBlocks || [],
     trueBlocks: [],
     falseBlocks: [],
   };
@@ -316,7 +316,7 @@ export default function TrueFalseDragDropChallenge({
         }
       `}} />
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
 
           {/* Navigation Bar at Top */}
           <Card className="bg-slate-800/50 border-slate-700 mb-4">

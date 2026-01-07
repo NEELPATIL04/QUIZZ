@@ -87,10 +87,17 @@ export default function HtmlCssChallenge({
     if (iframeRef.current) {
       const iframeDoc = iframeRef.current.contentDocument || iframeRef.current.contentWindow?.document;
       if (iframeDoc) {
-        // If targetSelector is empty/falsy, allow global CSS (no wrapper)
-        const userStyle = question.targetSelector
-          ? `${question.targetSelector} { ${userCss} }`
-          : userCss;
+        // Smart wrapping:
+        // If userCss contains '{', assume they are writing full selectors/rulesets -> Don't wrap.
+        // If targetSelector is present AND userCss has no braces, wrap it.
+        // Otherwise, treat as global.
+
+        let userStyle = userCss;
+
+        const hasBraces = /[{}]/.test(userCss);
+        if (question.targetSelector && !hasBraces) {
+          userStyle = `${question.targetSelector} { ${userCss} }`;
+        }
 
         const fullHtml = `
 <!DOCTYPE html>
@@ -330,7 +337,11 @@ ${question.providedHtml}
                     Actually, I'll paste the same expected output SVG here for the "Target" tab
                     if questionNumber === 6.
                  */}
-                {question.questionNumber === 6 ? (
+                {/* 
+                    Target Image Logic:
+                    Show if Question Number is 6 OR Title contains "Stacking" (case insensitive)
+                 */}
+                {(question.questionNumber === 6 || question.title.toLowerCase().includes('stacking')) ? (
                   <div className="text-center">
                     <img
                       src={`data:image/svg+xml;base64,${btoa(`<svg width="300" height="250" xmlns="http://www.w3.org/2000/svg">
