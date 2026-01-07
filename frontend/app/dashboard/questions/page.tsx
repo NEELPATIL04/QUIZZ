@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,8 @@ export default function QuestionsPage() {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const pausePollingRef = useRef(false);
+  const lastManualUpdateRef = useRef<{ [questionId: string]: number }>({});
 
   useEffect(() => {
     fetchQuestions();
@@ -67,7 +69,9 @@ export default function QuestionsPage() {
 
     // Auto-refresh timer states every 1 second for live updates
     const interval = setInterval(() => {
-      fetchAllMcqTimerStates();
+      if (!pausePollingRef.current) {
+        fetchAllMcqTimerStates();
+      }
     }, 1000);
 
     return () => clearInterval(interval);
@@ -138,7 +142,17 @@ export default function QuestionsPage() {
       const mcqQuestions = allQuestions.filter((q: any) => q.questionType === 'mcq_bidding');
 
       const states: { [key: string]: any } = {};
+      const now = Date.now();
+
       for (const q of mcqQuestions) {
+        // Skip if there was a manual update less than 6 seconds ago
+        const lastUpdate = lastManualUpdateRef.current[q.id];
+        if (lastUpdate && (now - lastUpdate) < 6000) {
+          // Keep existing state for this question
+          states[q.id] = mcqTimerStates[q.id];
+          continue;
+        }
+
         const response = await fetch(`http://localhost:5000/api/quiz/mcq/${q.id}/timer`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -157,6 +171,9 @@ export default function QuestionsPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
+      // Pause polling to prevent conflicts
+      pausePollingRef.current = true;
+
       const response = await fetch(`http://localhost:5000/api/quiz/mcq/${questionId}/enable-bid-round`, {
         method: 'POST',
         headers: {
@@ -167,16 +184,25 @@ export default function QuestionsPage() {
 
       if (!response.ok) throw new Error('Failed to enable bid round');
 
-      // Refresh timer states
-      fetchAllMcqTimerStates();
+      const data = await response.json();
 
-      // If this is the current question, also update current state
-      if (questionId === currentQuestionId) {
-        fetchMcqTimerState(questionId);
-      }
+      // Immediately update local state
+      setMcqTimerStates(prev => ({
+        ...prev,
+        [questionId]: data.timerState
+      }));
+
+      // Record the timestamp of this manual update to prevent polling override
+      lastManualUpdateRef.current[questionId] = Date.now();
+
+      // Resume polling after 5 seconds
+      setTimeout(() => {
+        pausePollingRef.current = false;
+      }, 5000);
     } catch (error) {
       console.error('Error enabling bid round:', error);
       alert('Failed to enable bid round');
+      pausePollingRef.current = false;
     }
   };
 
@@ -184,6 +210,9 @@ export default function QuestionsPage() {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
+
+      // Pause polling to prevent conflicts
+      pausePollingRef.current = true;
 
       const response = await fetch(`http://localhost:5000/api/quiz/mcq/${questionId}/disable-bid-round`, {
         method: 'POST',
@@ -195,16 +224,25 @@ export default function QuestionsPage() {
 
       if (!response.ok) throw new Error('Failed to disable bid round');
 
-      // Refresh timer states
-      fetchAllMcqTimerStates();
+      const data = await response.json();
 
-      // If this is the current question, also update current state
-      if (questionId === currentQuestionId) {
-        fetchMcqTimerState(questionId);
-      }
+      // Immediately update local state
+      setMcqTimerStates(prev => ({
+        ...prev,
+        [questionId]: data.timerState
+      }));
+
+      // Record the timestamp of this manual update to prevent polling override
+      lastManualUpdateRef.current[questionId] = Date.now();
+
+      // Resume polling after 5 seconds
+      setTimeout(() => {
+        pausePollingRef.current = false;
+      }, 5000);
     } catch (error) {
       console.error('Error disabling bid round:', error);
       alert('Failed to disable bid round');
+      pausePollingRef.current = false;
     }
   };
 

@@ -139,7 +139,7 @@ export default function MultipleChoiceChallenge({
                 {/* Code Snippet / Description */}
                 <Card className="bg-slate-900 border border-slate-700 shadow-xl overflow-hidden">
                     <CardContent className="p-6">
-                        <div className="prose prose-invert max-w-none text-slate-100 [&>img]:mt-6 [&>img]:rounded-lg [&>img]:border [&>img]:border-white/10">
+                        <div className="prose prose-invert max-w-none text-slate-100 [&>img]:mt-6 [&>img]:rounded-lg [&>img]:border [&>img]:border-white/10 [&>img]:max-w-md [&>img]:max-h-96 [&>img]:object-contain">
                             <ReactMarkdown
                                 components={{
                                     pre: ({ node, ...props }: any) => <div className="bg-slate-950 p-4 rounded-lg overflow-x-auto border border-slate-800 text-slate-50 whitespace-pre-wrap" {...props} />,

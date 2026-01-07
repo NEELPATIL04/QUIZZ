@@ -86,6 +86,17 @@ export const getCurrentQuestion = async (req: Request, res: Response): Promise<v
 
       timerState = timer || null;
 
+      // If bid round is not enabled, return instructions view
+      if (!timerState || !timerState.bidRoundEnabled) {
+        res.json({
+          question,
+          timerState,
+          bids: [],
+          showInstructions: true
+        });
+        return;
+      }
+
       // Get all bids for this question
       bids = await db
         .select({
@@ -101,7 +112,7 @@ export const getCurrentQuestion = async (req: Request, res: Response): Promise<v
         .where(eq(mcqBids.questionId, question.id));
     }
 
-    res.json({ question, timerState, bids });
+    res.json({ question, timerState, bids, showInstructions: false });
   } catch (error) {
     console.error('Get current question error:', error);
     res.status(500).json({ error: 'Internal server error' });

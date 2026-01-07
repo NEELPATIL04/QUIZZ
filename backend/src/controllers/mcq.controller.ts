@@ -14,64 +14,12 @@ export const getTimerState = async (req: AuthRequest, res: Response): Promise<vo
       .from(mcqTimerState)
       .where(eq(mcqTimerState.questionId, questionId));
 
-    // Check Global Bid Mode
-    const [config] = await db.select().from(quizConfig).limit(1);
+    // Check Global Bid Mode - REMOVED AUTO-ENABLE SIDE EFFECT
+    // Ideally, state changes should happen via explicit actions, not read operations.
+    // const [config] = await db.select().from(quizConfig).limit(1);
 
-    // Auto-enable if global mode is active and timer not enabled yet
-    if (config?.isBidQuestionActive) {
-      // Verify it's a bid question first
-      const [question] = await db.select().from(questions).where(eq(questions.id, questionId));
-
-      if (question && question.questionType === 'mcq_bidding') {
-        if (!timer) {
-          try {
-            // Create and enable
-            const [newTimer] = await db
-              .insert(mcqTimerState)
-              .values({
-                questionId,
-                bidRoundEnabled: true,
-                isRunning: false,
-                timeRemaining: 10,
-                biddingClosed: false,
-                answerRevealed: false,
-              })
-              .returning();
-            timer = newTimer;
-          } catch (e: any) {
-            // Race condition: Timer might have been created by another request concurrently
-            if (e.code === '23505') { // Unique constraint violation code for Postgres
-              const [existingTimer] = await db
-                .select()
-                .from(mcqTimerState)
-                .where(eq(mcqTimerState.questionId, questionId));
-
-              // Ensure it is enabled if we found it
-              if (existingTimer && !existingTimer.bidRoundEnabled) {
-                const [updated] = await db
-                  .update(mcqTimerState)
-                  .set({ bidRoundEnabled: true })
-                  .where(eq(mcqTimerState.questionId, questionId))
-                  .returning();
-                timer = updated;
-              } else {
-                timer = existingTimer;
-              }
-            } else {
-              throw e; // Rethrow other errors
-            }
-          }
-        } else if (!timer.bidRoundEnabled) {
-          // Update to enable
-          const [updated] = await db
-            .update(mcqTimerState)
-            .set({ bidRoundEnabled: true })
-            .where(eq(mcqTimerState.questionId, questionId))
-            .returning();
-          timer = updated;
-        }
-      }
-    }
+    // Auto-enable logic removed to prevent zombie state where disabling is impossible.
+    // Use enableBidRound endpoint to enable questions.
 
     res.json({ timerState: timer || null });
   } catch (error) {
@@ -99,13 +47,14 @@ export const enableBidRound = async (req: AuthRequest, res: Response): Promise<v
       .from(mcqTimerState)
       .where(eq(mcqTimerState.questionId, questionId));
 
-    // Enable Global Bid Mode
+    // Enable Global Bid Mode and set as current question
     const [config] = await db.select().from(quizConfig).limit(1);
     if (config) {
       await db
         .update(quizConfig)
         .set({
           isBidQuestionActive: true,
+          currentQuestionId: questionId,
           updatedAt: new Date(),
         })
         .where(eq(quizConfig.id, config.id));

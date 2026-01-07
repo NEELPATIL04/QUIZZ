@@ -31,6 +31,7 @@ export default function TeamQuizPage() {
   const [timerRunning, setTimerRunning] = useState(false);
   const [isQuizEnded, setIsQuizEnded] = useState(false);
   const [winnerTeam, setWinnerTeam] = useState<any>(null);
+  const [mcqTimerState, setMcqTimerState] = useState<any>(null);
 
   useEffect(() => {
     const storedTeamNumber = sessionStorage.getItem('teamNumber');
@@ -65,9 +66,40 @@ export default function TeamQuizPage() {
     const interval = setInterval(() => {
       fetchQuestions();
       fetchTeamScore(teamNumber);
-    }, 3000);
+      // Fetch MCQ timer state if current question is mcq_bidding
+      if (questions.length > 0 && currentQuestionIndex < questions.length) {
+        const q = questions[currentQuestionIndex];
+        if (q && q.questionType === 'mcq_bidding') {
+          fetchMcqTimerState(q.id);
+        }
+      }
+    }, 2000);
     return () => clearInterval(interval);
-  }, [teamNumber]);
+  }, [teamNumber, questions, currentQuestionIndex]);
+
+  // Redirect to instructions if MCQ bid round is disabled
+  useEffect(() => {
+    if (questions.length > 0 && currentQuestionIndex < questions.length) {
+      const currentQ = questions[currentQuestionIndex];
+      if (currentQ && currentQ.questionType === 'mcq_bidding') {
+        if (mcqTimerState && !mcqTimerState.bidRoundEnabled) {
+          router.push(`/quiz/bid-instructions?questionId=${currentQ.id}`);
+        }
+      }
+    }
+  }, [mcqTimerState, questions, currentQuestionIndex, router]);
+
+  const fetchMcqTimerState = async (questionId: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/quiz/mcq/${questionId}/timer`, {
+        cache: 'no-store'
+      });
+      const data = await response.json();
+      setMcqTimerState(data.timerState);
+    } catch (error) {
+      console.error('Error fetching MCQ timer state:', error);
+    }
+  };
 
   useEffect(() => {
     if (questions.length > 0 && currentQuestionIndex < questions.length) {
@@ -223,8 +255,15 @@ export default function TeamQuizPage() {
       setIsQuizEnded(true);
       fetchWinner();
     } else if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-      window.scrollTo(0, 0);
+      const nextQ = questions[currentQuestionIndex + 1];
+
+      // If next question is MCQ bidding, go to instructions page
+      if (nextQ && nextQ.questionType === 'mcq_bidding') {
+        router.push(`/quiz/bid-instructions?questionId=${nextQ.id}`);
+      } else {
+        setCurrentQuestionIndex(prev => prev + 1);
+        window.scrollTo(0, 0);
+      }
     }
   };
 
@@ -287,58 +326,63 @@ export default function TeamQuizPage() {
   const currentQuestion = questions[currentQuestionIndex];
   if (!currentQuestion) return <div>Invalid Question Index</div>;
 
-  const getCommonProps = () => ({
-    teamNumber: teamNumber!,
-    isController: memberRole === 'controller',
-    onNext: handleNextQuestion,
-    hasNextQuestion: true, // We want the button to appear. If end of quiz, handleNextQuestion triggers end screen.
-    onPrevious: handlePreviousQuestion,
-    hasPreviousQuestion: currentQuestionIndex > 0,
-    onSubmit: async (answer: any, timeTaken?: number, startTime?: number | Date) => {
-      try {
-        const result = await api.submitAnswer(
-          teamNumber!,
-          currentQuestion.id,
-          answer,
-          timeTaken,
-          startTime
-        );
-        setSubmittedAnswers(new Set([...submittedAnswers, currentQuestion.id]));
-        return {
-          isCorrect: result.isCorrect,
-          pointsAwarded: result.pointsAwarded,
-          correctCount: result.correctCount,
-          totalCount: result.totalCount
+  const getCommonProps = () => {
+    // Check if next question is first MCQ bidding question
+    const nextQuestion = questions[currentQuestionIndex + 1];
+    const isNextQuestionBidRound = nextQuestion && nextQuestion.questionType === 'mcq_bidding';
+
+    return {
+      teamNumber: teamNumber!,
+      isController: memberRole === 'controller',
+      onNext: handleNextQuestion,
+      hasNextQuestion: true, // We want the button to appear. If end of quiz, handleNextQuestion triggers end screen.
+      nextQuestionIsBidRound: isNextQuestionBidRound,
+      onPrevious: handlePreviousQuestion,
+      hasPreviousQuestion: currentQuestionIndex > 0,
+      onSubmit: async (answer: any, timeTaken?: number, startTime?: number | Date) => {
+        try {
+          const result = await api.submitAnswer(
+            teamNumber!,
+            currentQuestion.id,
+            answer,
+            timeTaken,
+            startTime
+          );
+          setSubmittedAnswers(new Set([...submittedAnswers, currentQuestion.id]));
+          return {
+            isCorrect: result.isCorrect,
+            pointsAwarded: result.pointsAwarded,
+            correctCount: result.correctCount,
+            totalCount: result.totalCount
+          }
+        } catch (e: any) {
+          throw new Error(e.message || "Failed to submit");
         }
-      } catch (e: any) {
-        throw new Error(e.message || "Failed to submit");
       }
-    }
-  });
+    };
+  };
 
   const commonProps = getCommonProps();
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      <main className="w-full">
-        {currentQuestion.questionType === 'git_challenge' ? (
-          <GitQuizInterface question={currentQuestion} {...commonProps} />
-        ) : currentQuestion.questionType === 'html_css_challenge' ? (
-          <HtmlCssChallenge question={currentQuestion} {...commonProps} />
-        ) : currentQuestion.questionType === 'js_engine_challenge' ? (
-          <JsEngineChallenge question={currentQuestion} {...commonProps} />
-        ) : currentQuestion.questionType === 'mcq_bidding' ? (
-          <McqBiddingChallenge question={currentQuestion} {...commonProps} teamScore={teamScore} />
-        ) : currentQuestion.questionType === 'broken_html_challenge' ? (
-          <HtmlTreeBuilderFinal question={currentQuestion} {...commonProps} />
-        ) : currentQuestion.questionType === 'true_false_drag_drop' ? (
-          <TrueFalseDragDropChallenge question={currentQuestion} {...commonProps} />
-        ) : currentQuestion.questionType === 'match_following' ? (
-          <MatchFollowingChallenge question={currentQuestion} {...commonProps} />
-        ) : (
-          <MultipleChoiceChallenge question={currentQuestion} {...commonProps} />
-        )}
-      </main>
-    </div>
+    <>
+      {currentQuestion.questionType === 'git_challenge' ? (
+        <GitQuizInterface question={currentQuestion} {...commonProps} />
+      ) : currentQuestion.questionType === 'html_css_challenge' ? (
+        <HtmlCssChallenge question={currentQuestion} {...commonProps} />
+      ) : currentQuestion.questionType === 'js_engine_challenge' ? (
+        <JsEngineChallenge question={currentQuestion} {...commonProps} />
+      ) : currentQuestion.questionType === 'mcq_bidding' ? (
+        <McqBiddingChallenge question={currentQuestion} {...commonProps} teamScore={teamScore} />
+      ) : currentQuestion.questionType === 'broken_html_challenge' ? (
+        <HtmlTreeBuilderFinal question={currentQuestion} {...commonProps} />
+      ) : currentQuestion.questionType === 'true_false_drag_drop' ? (
+        <TrueFalseDragDropChallenge question={currentQuestion} {...commonProps} />
+      ) : currentQuestion.questionType === 'match_following' ? (
+        <MatchFollowingChallenge question={currentQuestion} {...commonProps} />
+      ) : (
+        <MultipleChoiceChallenge question={currentQuestion} {...commonProps} />
+      )}
+    </>
   );
 }

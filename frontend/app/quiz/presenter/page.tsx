@@ -7,6 +7,7 @@ import { Presentation, Lock, Eye, EyeOff } from 'lucide-react';
 import GitBashTerminal from '@/components/GitBashTerminal';
 import ScoreboardOverlay from '@/components/ScoreboardOverlay';
 import BidResultsOverlay from '@/components/BidResultsOverlay';
+import BidRoundInstructions from '@/components/BidRoundInstructions';
 
 export default function PresenterPage() {
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
@@ -145,6 +146,13 @@ export default function PresenterPage() {
               </p>
             </CardContent>
           </Card>
+        ) : currentQuestion.showInstructions ? (
+          <BidRoundInstructions
+            questionNumber={currentQuestion.question.questionNumber}
+            questionTitle={currentQuestion.question.title}
+            questionDescription={currentQuestion.question.description}
+            questionOptions={currentQuestion.question.options}
+          />
         ) : (
           <div className="space-y-6">
             {/* Question Card */}
