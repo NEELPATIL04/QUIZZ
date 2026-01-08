@@ -469,7 +469,17 @@ export default function QuestionsPage() {
     let parsedOptions = ['', '', '', ''];
     try {
       if (question.options) {
-        const parsed = JSON.parse(question.options);
+        let parsed = question.options;
+        // If it's a string, try to parse it
+        if (typeof parsed === 'string') {
+          try {
+            parsed = JSON.parse(parsed);
+          } catch (e) {
+            console.error("Failed to parse options JSON:", e);
+            // Treat as raw string array if possible or leave as is
+          }
+        }
+
         if (Array.isArray(parsed)) {
           // Handle complex object options (bidding) or simple strings
           // Extract text for the form inputs
@@ -480,7 +490,7 @@ export default function QuestionsPage() {
           }
         }
       }
-    } catch (e) { console.error("Error parsing options for edit", e); }
+    } catch (e) { console.error("Error processing options for edit", e); }
 
     setFormData({
       questionNumber: question.questionNumber,

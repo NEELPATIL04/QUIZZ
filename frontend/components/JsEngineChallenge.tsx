@@ -351,8 +351,8 @@ export default function JsEngineChallenge({
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 p-6 pb-20">
       {/* Header with Navigation */}
       <div className="mb-6 flex items-center justify-between">
-        {/* Left: Previous Button (Swapped from Right) */}
-        <div>
+        {/* Left: Previous Button (Swapped from Right) - Fixed Width */}
+        <div className="w-64 flex justify-start">
           {!readOnly && hasPreviousQuestion && onPrevious && (
             <Button
               onClick={onPrevious}
@@ -373,8 +373,8 @@ export default function JsEngineChallenge({
           <p className="text-purple-200 text-lg">Understand how the JavaScript engine executes code!</p>
         </div>
 
-        {/* Right: Next Button + Controls (Next Swapped from Left) */}
-        <div className="flex items-center gap-4">
+        {/* Right: Next Button + Controls (Next Swapped from Left) - Fixed Width */}
+        <div className="w-64 flex justify-end items-center gap-4">
           {/* Team Score Display */}
           {teamScore !== undefined && (
             <div className="bg-slate-800 px-4 py-2 rounded-lg border border-slate-600 shadow-sm">

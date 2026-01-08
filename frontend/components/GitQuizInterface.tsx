@@ -291,8 +291,8 @@ export default function GitQuizInterface({
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
       {/* Header with Navigation and Timer */}
       <div className="mb-6 flex items-center justify-between">
-        {/* Left: Previous Button (Swapped from Right) */}
-        <div className="flex items-center gap-4">
+        {/* Left: Previous Button (Swapped from Right) - Fixed Width */}
+        <div className="w-64 flex justify-start items-center gap-4">
           {!readOnly && hasPreviousQuestion && onPrevious && (
             <Button
               onClick={onPrevious}
@@ -313,8 +313,8 @@ export default function GitQuizInterface({
           <p className="text-slate-300 text-lg">{question.points} points</p>
         </div>
 
-        {/* Right: Next Button + Timer (Next Swapped from Left) */}
-        <div className="flex items-center gap-4">
+        {/* Right: Next Button + Timer (Next Swapped from Left) - Fixed Width */}
+        <div className="w-64 flex justify-end items-center gap-4">
           {!readOnly && hasNextQuestion && onNext && (
             <Button
               onClick={onNext}
@@ -440,8 +440,8 @@ export default function GitQuizInterface({
             {/* Results */}
             {isSubmitted && result && (
               <div className={`p-6 rounded-lg border-2 ${result.isCorrect
-                  ? 'bg-green-900/50 border-green-500'
-                  : 'bg-red-900/50 border-red-500'
+                ? 'bg-green-900/50 border-green-500'
+                : 'bg-red-900/50 border-red-500'
                 }`}>
                 <div className="flex items-center gap-3 mb-3">
                   {result.isCorrect ? (

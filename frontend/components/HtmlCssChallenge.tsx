@@ -141,8 +141,8 @@ export default function HtmlCssChallenge({
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 p-6">
       {/* Header with Navigation and Timer */}
       <div className="mb-6 flex items-center justify-between">
-        {/* Left: Previous Button (Swapped from Right) */}
-        <div>
+        {/* Left: Previous Button (Swapped from Right) - Fixed Width */}
+        <div className="w-64 flex justify-start">
           {!readOnly && hasPreviousQuestion && onPrevious && (
             <Button
               onClick={onPrevious}
@@ -150,7 +150,7 @@ export default function HtmlCssChallenge({
               variant="outline"
               className="bg-purple-700 hover:bg-purple-600 text-white font-bold px-8 py-3 text-base border-purple-500"
             >
-              ← Previous Question
+              ← Previous
             </Button>
           )}
         </div>
@@ -163,8 +163,8 @@ export default function HtmlCssChallenge({
           <p className="text-purple-200 text-lg">{question.points} points</p>
         </div>
 
-        {/* Right: Next Button + Timer (Next Swapped from Left) */}
-        <div className="flex items-center gap-4">
+        {/* Right: Next Button + Timer (Next Swapped from Left) - Fixed Width */}
+        <div className="w-64 flex justify-end items-center gap-4">
           {!readOnly && hasNextQuestion && onNext && (
             <Button
               onClick={onNext}

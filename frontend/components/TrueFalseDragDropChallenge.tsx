@@ -322,28 +322,32 @@ export default function TrueFalseDragDropChallenge({
           <Card className="bg-slate-800/50 border-slate-700 mb-4">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <Button
-                  onClick={onPrevious}
-                  disabled={!hasPreviousQuestion}
-                  className="bg-slate-700 hover:bg-slate-600 text-white border-2 border-slate-600 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-slate-800"
-                >
-                  <ChevronLeft className="w-4 h-4 mr-2" />
-                  Previous Question
-                </Button>
+                <div className="w-64 flex justify-start">
+                  <Button
+                    onClick={onPrevious}
+                    disabled={!hasPreviousQuestion}
+                    className="bg-slate-700 hover:bg-slate-600 text-white border-2 border-slate-600 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-slate-800"
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-2" />
+                    Previous Question
+                  </Button>
+                </div>
 
                 <div className="flex items-center gap-2 text-white bg-purple-600 px-4 py-2 rounded-lg shadow-lg">
                   <Clock className="w-5 h-5" />
                   <span className="font-mono text-lg font-bold">{formatTime(elapsedTime)}</span>
                 </div>
 
-                <Button
-                  onClick={onNext}
-                  disabled={!hasNextQuestion}
-                  className="bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-500 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-slate-800"
-                >
-                  {nextQuestionIsBidRound ? 'Continue to Bid Round' : 'Next Question'}
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
+                <div className="w-64 flex justify-end">
+                  <Button
+                    onClick={onNext}
+                    disabled={!hasNextQuestion}
+                    className="bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-500 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-slate-800"
+                  >
+                    {nextQuestionIsBidRound ? 'Continue to Bid Round' : 'Next Question'}
+                    <ChevronRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

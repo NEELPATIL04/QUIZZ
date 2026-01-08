@@ -245,27 +245,31 @@ export default function MatchFollowingChallenge({
                 <Card className="bg-slate-800/50 border-slate-700 mb-4">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">
-                            <Button
-                                onClick={onPrevious}
-                                disabled={!hasPreviousQuestion}
-                                className="bg-slate-700 hover:bg-slate-600 text-white border-2 border-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                                <ChevronLeft className="w-4 h-4 mr-2" />
-                                Previous Question
-                            </Button>
+                            <div className="w-64 flex justify-start">
+                                <Button
+                                    onClick={onPrevious}
+                                    disabled={!hasPreviousQuestion}
+                                    className="bg-slate-700 hover:bg-slate-600 text-white border-2 border-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                    <ChevronLeft className="w-4 h-4 mr-2" />
+                                    Previous Question
+                                </Button>
+                            </div>
 
                             <div className="flex items-center gap-2 text-white bg-indigo-600 px-4 py-2 rounded-lg shadow-lg">
                                 <Clock className="w-5 h-5" />
                                 <span className="font-mono text-lg font-bold">{formatTime(elapsedTime)}</span>
                             </div>
 
-                            <Button
-                                onClick={onNext}
-                                disabled={!hasNextQuestion}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white border-2 border-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                                {nextQuestionIsBidRound ? 'Next Question →' : 'Next Question →'}
-                            </Button>
+                            <div className="w-64 flex justify-end">
+                                <Button
+                                    onClick={onNext}
+                                    disabled={!hasNextQuestion}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white border-2 border-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                                >
+                                    {nextQuestionIsBidRound ? 'Next Question →' : 'Next Question →'}
+                                </Button>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

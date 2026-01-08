@@ -308,8 +308,8 @@ export default function HtmlTreeBuilderFinal({
     <div className="min-h-screen bg-gradient-to-br from-teal-900 via-cyan-900 to-blue-900 p-6">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
-        {/* Left: Previous Button (Swapped from Right) */}
-        <div>
+        {/* Left: Previous Button (Swapped from Right) - Fixed Width */}
+        <div className="w-64 flex justify-start">
           {!readOnly && hasPreviousQuestion && onPrevious && (
             <Button onClick={onPrevious} size="lg" variant="outline" className="bg-cyan-700 hover:bg-cyan-600 text-white font-bold px-8 py-3 border-cyan-500">
               ← Previous Question
@@ -322,8 +322,8 @@ export default function HtmlTreeBuilderFinal({
           <p className="text-cyan-200 text-lg">{question.points} points</p>
         </div>
 
-        {/* Right: Next Button + Timer (Next Swapped from Left) */}
-        <div className="flex items-center gap-4">
+        {/* Right: Next Button + Timer (Next Swapped from Left) - Fixed Width */}
+        <div className="w-64 flex justify-end items-center gap-4">
           {!readOnly && hasNextQuestion && onNext && (
             <Button onClick={onNext} size="lg" className={nextQuestionIsBidRound ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 animate-pulse" : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3"}>
               {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}

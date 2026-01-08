@@ -100,8 +100,8 @@ export default function MultipleChoiceChallenge({
         <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-900 to-cyan-900 p-6">
             {/* Header with Navigation */}
             <div className="mb-6 flex items-center justify-between">
-                {/* Left: Previous Button (Swapped from Right) */}
-                <div className="flex items-center gap-2">
+                {/* Left: Previous Button (Swapped from Right) - Fixed Width */}
+                <div className="w-64 flex justify-start">
                     {hasPreviousQuestion && onPrevious && (
                         <Button
                             onClick={onPrevious}
@@ -125,8 +125,8 @@ export default function MultipleChoiceChallenge({
                     <p className="text-blue-200 text-lg">Select the correct output</p>
                 </div>
 
-                {/* Right: Next Question Button (Swapped from Left) */}
-                <div>
+                {/* Right: Next Question Button (Swapped from Left) - Fixed Width */}
+                <div className="w-64 flex justify-end">
                     {hasNextQuestion && onNext && (
                         <Button
                             onClick={onNext}

@@ -181,8 +181,8 @@ export default function McqBiddingChallenge({
     <div className="min-h-screen bg-gradient-to-br from-teal-900 via-cyan-900 to-blue-900 p-8">
       {/* Header with Navigation */}
       <div className="mb-6 flex items-center justify-between w-full">
-        {/* Left: Previous Button (Swapped from Right) */}
-        <div className="flex items-center gap-3">
+        {/* Left: Previous Button (Swapped from Right) - Fixed Width */}
+        <div className="w-64 flex justify-start items-center gap-3">
           {/* Previous button (when there's a previous question and we're not on first) */}
           {hasPreviousQuestion && onPrevious && !isFirstBidQuestion && (
             <Button
@@ -197,7 +197,7 @@ export default function McqBiddingChallenge({
         </div>
 
         {/* Center: Title */}
-        <div>
+        <div className="flex-1 flex flex-col items-center">
           <div className="flex items-center justify-center gap-3 mb-2">
             <span className="inline-block bg-purple-600 text-white px-3 py-1 rounded-md text-sm font-semibold">
               Question {question.questionNumber}
@@ -209,8 +209,8 @@ export default function McqBiddingChallenge({
           <h1 className="text-3xl font-bold text-white text-center">Team {teamNumber}</h1>
         </div>
 
-        {/* Right: Next Buttons + Score (Swapped from Left) */}
-        <div className="flex items-center gap-4">
+        {/* Right: Next Buttons + Score (Swapped from Left) - Fixed Width */}
+        <div className="w-64 flex justify-end items-center gap-4">
           {/* Exit Bid Round button (always on first question) */}
           {isFirstBidQuestion && onExitBidRound && (
             <Button
