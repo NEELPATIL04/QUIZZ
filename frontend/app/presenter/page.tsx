@@ -23,7 +23,7 @@ export default function PresenterLoginPage() {
 
     try {
       // Join as presenter
-      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/presenter/join', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/presenter/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

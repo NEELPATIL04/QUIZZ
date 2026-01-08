@@ -35,7 +35,9 @@ async function forceDisableBidRounds() {
   `);
 
   console.log('Verification:');
-  result.rows.forEach((row: any) => {
+  // @ts-ignore - Drizzle/Postgres result type varies, treat as array
+  const rows = Array.isArray(result) ? result : (result as any).rows || [];
+  rows.forEach((row: any) => {
     console.log(`  Question ID: ${row.question_id}`);
     console.log(`  bidRoundEnabled: ${row.bid_round_enabled}`);
     console.log('  ---');

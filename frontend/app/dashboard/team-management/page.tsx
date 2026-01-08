@@ -110,7 +110,7 @@ export default function TeamManagementPage() {
     try {
       const teamNumber = teams.find(t => t.id === selectedTeam)?.teamNumber;
 
-      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/public/teams/join', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/public/teams/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -223,7 +223,7 @@ export default function TeamManagementPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/quiz/teams/reset-scores', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/quiz/teams/reset-scores`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
