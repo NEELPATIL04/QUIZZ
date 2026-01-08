@@ -354,12 +354,12 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
 
       pointsAwarded = Math.round(question.points * scorePercentage);
       isCorrect = pointsAwarded === question.points;
-        } else if (question.questionType === 'match_following') {
+    } else if (question.questionType === 'match_following') {
       try {
         let submittedPairs = typeof answer === 'string' ? JSON.parse(answer) : answer;
         if (!submittedPairs || typeof submittedPairs !== 'object') {
-           console.error('Invalid match answer:', answer);
-           submittedPairs = {};
+          console.error('Invalid match answer:', answer);
+          submittedPairs = {};
         }
 
         const options = JSON.parse(question.options as string || '[]');
@@ -381,7 +381,7 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
         const scorePercentage = totalCount > 0 ? (correctCount / totalCount) : 0;
         pointsAwarded = Math.round(question.points * scorePercentage);
         isCorrect = correctCount === totalCount;
-        
+
         additionalData = { correctCount, totalCount };
       } catch (error: any) {
         console.error('Match Error:', error);
@@ -390,40 +390,78 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
         additionalData = { correctCount: 0, totalCount: 0, error: error.message };
       }
     } else {
-      // Robust Grading (Text + Array Support)
+      // Robust Grading with Smart Key Resolution (Fixes Key vs Text mismatch)
       isCorrect = false;
       const cleanAnswer = answer ? String(answer).trim() : '';
       const cleanCorrect = question.correctAnswer ? String(question.correctAnswer).trim() : '';
+      const questionId = question.id;
 
-      console.log(`[submitAnswer] Validating answer for question type: ${question.questionType}`);
-      console.log(`[submitAnswer] User answer: "${cleanAnswer}"`);
-      console.log(`[submitAnswer] Correct answer: "${cleanCorrect}"`);
+      console.log(`[submitAnswer] Validating answer for Q:${questionId} (${question.questionType})`);
+      console.log(`[submitAnswer] Raw User answer: "${cleanAnswer}"`);
+      console.log(`[submitAnswer] Raw Correct answer: "${cleanCorrect}"`);
 
+      let options: any[] = [];
       try {
-        if (cleanAnswer.startsWith('[') && cleanCorrect.startsWith('[')) {
-            const parsedAnswer = JSON.parse(cleanAnswer);
-            const parsedCorrect = JSON.parse(cleanCorrect);
-
-            if (Array.isArray(parsedAnswer) && Array.isArray(parsedCorrect)) {
-                 const sortedAnswer = [...parsedAnswer].sort().map(s => String(s).trim().toLowerCase());
-                 const sortedCorrect = [...parsedCorrect].sort().map(s => String(s).trim().toLowerCase());
-                 isCorrect = JSON.stringify(sortedAnswer) === JSON.stringify(sortedCorrect);
-                 console.log(`[submitAnswer] Array comparison: ${isCorrect}`);
+        if (question.options) {
+          // Robust parsing to handle potential double-stringification
+          if (typeof question.options === 'string') {
+            const firstParse = JSON.parse(question.options);
+            if (typeof firstParse === 'string') {
+              options = JSON.parse(firstParse);
             } else {
-                 isCorrect = cleanAnswer.toLowerCase() === cleanCorrect.toLowerCase();
-                 console.log(`[submitAnswer] String comparison (non-array JSON): ${isCorrect}`);
+              options = firstParse;
             }
-        } else {
-            isCorrect = cleanAnswer.toLowerCase() === cleanCorrect.toLowerCase();
-            console.log(`[submitAnswer] String comparison: ${isCorrect}`);
+          } else {
+            options = question.options as any;
+          }
         }
       } catch (e) {
-        isCorrect = cleanAnswer.toLowerCase() === cleanCorrect.toLowerCase();
-        console.log(`[submitAnswer] String comparison (fallback): ${isCorrect}`);
+        console.error(`[submitAnswer] Failed to parse options for Q:${questionId}`, e);
+        // Fallback: If options fail to parse, we can't do smart grading.
+        // We might just have to compare raw strings if options are missing,
+        // but let's leave options empty which will force exact key match falling back to 's'
       }
 
+      // Helper to resolve any value (Key or Text) to its Canonical Key (A, B, C...)
+      const resolveToKeys = (val: string): string[] => {
+        if (!val) return [];
+
+        let parsed: any;
+        try {
+          parsed = JSON.parse(val);
+        } catch (e) {
+          parsed = val;
+        }
+
+        const values = Array.isArray(parsed) ? parsed : [parsed];
+
+        return values.map((v: any) => {
+          const s = String(v).trim();
+          // 1. Check if it matches a Key directly (case-insensitive)
+          const matchedByKey = options.find((o: any) => o.key && o.key.toLowerCase() === s.toLowerCase());
+          if (matchedByKey) return matchedByKey.key;
+
+          // 2. Check if it matches Option Text (case-insensitive)
+          const matchedByText = options.find((o: any) => o.text && o.text.trim().toLowerCase() === s.toLowerCase());
+          if (matchedByText) return matchedByText.key;
+
+          // 3. Fallback: return strictly explicitly if it looks like a key (A-Z)
+          if (/^[A-Z]$/i.test(s)) return s.toUpperCase();
+
+          return s; // Return original if no resolution found
+        });
+      };
+
+      const userKeys = resolveToKeys(cleanAnswer).sort();
+      const correctKeys = resolveToKeys(cleanCorrect).sort();
+
+      console.log(`[submitAnswer] Resolved User Keys: ${JSON.stringify(userKeys)}`);
+      console.log(`[submitAnswer] Resolved Correct Keys: ${JSON.stringify(correctKeys)}`);
+
+      isCorrect = JSON.stringify(userKeys) === JSON.stringify(correctKeys);
+
       pointsAwarded = isCorrect ? question.points : 0;
-      console.log(`[submitAnswer] Points awarded: ${pointsAwarded}/${question.points}`);
+      console.log(`[submitAnswer] Result: ${isCorrect} (${pointsAwarded} pts)`);
     }
 
     // For true_false_drag_drop, we need to also send correctCount and totalCount

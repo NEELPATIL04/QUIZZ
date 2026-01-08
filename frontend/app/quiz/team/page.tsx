@@ -271,8 +271,21 @@ export default function TeamQuizPage() {
       const trimmed = value.trim();
       if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
         try {
-          return JSON.parse(value);
-        } catch {
+          const parsed = JSON.parse(value);
+          // Handle double-encoded JSON (common issue)
+          if (typeof parsed === 'string' && (parsed.startsWith('[') || parsed.startsWith('{'))) {
+            try {
+              return JSON.parse(parsed);
+            } catch {
+              return parsed; // Return first parse if second fails
+            }
+          }
+
+          return parsed;
+        } catch (e) {
+          console.error("safeJsonParse Failed:", e, "Value:", value);
+          // Try one last desperate parse if it looks like a string wrapped in quotes but JSON.parse failed?
+          // No, usually that means malformed JSON.
           return fallback;
         }
       }
@@ -309,6 +322,13 @@ export default function TeamQuizPage() {
       const parsedData = data.map((q: any) => {
         try {
           const parsedOptions = safeJsonParse(q.options, []);
+
+          if (q.questionNumber === 7) {
+            console.log("DEBUG Q7 Raw Options:", q.options);
+            console.log("DEBUG Q7 Parsed Options:", parsedOptions);
+            console.log("DEBUG Q7 Transformed:", transformOptions(parsedOptions));
+          }
+
           return {
             ...q,
             options: transformOptions(parsedOptions),

@@ -470,27 +470,56 @@ export default function QuestionsPage() {
     try {
       if (question.options) {
         let parsed = question.options;
-        // If it's a string, try to parse it
+        console.log("Raw question options:", parsed);
+
+        // Strategy 1: If it's a string, try to parse it (handle potential double-encoding)
         if (typeof parsed === 'string') {
           try {
             parsed = JSON.parse(parsed);
+            // Handle double encoding if necessary
+            if (typeof parsed === 'string') {
+              try {
+                parsed = JSON.parse(parsed);
+              } catch (e) { /* ignore secondary parse error */ }
+            }
           } catch (e) {
             console.error("Failed to parse options JSON:", e);
-            // Treat as raw string array if possible or leave as is
+            // If it fails, maybe it's just a raw comma-separated string? unlikely but possible default to empty
           }
         }
 
+        // Strategy 2: Extract text based on structure
         if (Array.isArray(parsed)) {
-          // Handle complex object options (bidding) or simple strings
-          // Extract text for the form inputs
-          const texts = parsed.map((o: any) => typeof o === 'string' ? o : o.text);
-          // Fill up to 4
+          // Map values to strings
+          const texts = parsed.map((o: any) => {
+            if (typeof o === 'string') return o;
+            if (o && typeof o === 'object') {
+              // Check common keys
+              return o.text || o.value || o.label || o.key || '';
+            }
+            return String(o);
+          });
+
+          // Fill the form state (up to 4 options)
           for (let i = 0; i < 4; i++) {
-            parsedOptions[i] = texts[i] || '';
+            if (i < texts.length) {
+              parsedOptions[i] = texts[i] || ''; // Ensure no undefined/null
+            }
+          }
+        } else if (typeof parsed === 'object') {
+          // Edge case: if options is an object like {A: "...", B: "..."} (not expected but safe handling)
+          const values = Object.values(parsed);
+          for (let i = 0; i < 4; i++) {
+            if (i < values.length) {
+              parsedOptions[i] = String(values[i] || '');
+            }
           }
         }
       }
-    } catch (e) { console.error("Error processing options for edit", e); }
+    } catch (e) {
+      console.error("Critical error processing options for edit:", e);
+      // Fallback is empty strings which is safer than crashing
+    }
 
     setFormData({
       questionNumber: question.questionNumber,
@@ -828,9 +857,10 @@ export default function QuestionsPage() {
                       required
                     >
                       <option value="">Select Correct Option</option>
-                      {formData.options.map((opt, idx) => (
-                        opt ? <option key={idx} value={opt}>Option {idx + 1}: {opt.substring(0, 30)}...</option> : null
-                      ))}
+                      {formData.options.map((opt, idx) => {
+                        const key = String.fromCharCode(65 + idx); // A, B, C...
+                        return opt ? <option key={idx} value={key}>Option {key}: {opt.substring(0, 30)}...</option> : null;
+                      })}
                     </select>
                   </div>
 
