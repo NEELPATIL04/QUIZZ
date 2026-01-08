@@ -133,29 +133,48 @@ export const initializeTeams = async (req: AuthRequest, res: Response): Promise<
 
     // Get existing teams
     const existingTeams = await db.select().from(teams);
-    const currentTeamCount = existingTeams.length;
+    const existingTeamNumbers = new Set(existingTeams.map(t => t.teamNumber));
     const targetTeamCount = config.numberOfTeams;
 
-    let createdTeams = [...existingTeams];
+    const teamsToCreate: any[] = [];
+    const teamsToDeleteIds: string[] = [];
 
-    // If we need MORE teams, add them
-    if (targetTeamCount > currentTeamCount) {
-      const teamsToCreate = [];
-      for (let i = currentTeamCount + 1; i <= targetTeamCount; i++) {
+    // 1. Identify teams to create (missing numbers in 1..Target)
+    for (let i = 1; i <= targetTeamCount; i++) {
+      if (!existingTeamNumbers.has(i)) {
         teamsToCreate.push({
           teamNumber: i,
           teamName: `Team ${i}`,
-          score: 0, // Starting score
+          score: 0,
         });
       }
+    }
 
+    // 2. Identify teams to delete (numbers > Target)
+    existingTeams.forEach(t => {
+      if (t.teamNumber > targetTeamCount) {
+        teamsToDeleteIds.push(t.id);
+      }
+    });
+
+    let finalTeams = [...existingTeams];
+
+    // Execute Deletions
+    if (teamsToDeleteIds.length > 0) {
+      for (const id of teamsToDeleteIds) {
+        await db.delete(teams).where(eq(teams.id, id));
+      }
+      // Update local list
+      finalTeams = finalTeams.filter(t => !teamsToDeleteIds.includes(t.id));
+    }
+
+    // Execute Creations
+    if (teamsToCreate.length > 0) {
       const newTeams = await db.insert(teams).values(teamsToCreate).returning();
-      createdTeams = [...existingTeams, ...newTeams];
 
-      // Create team members for new teams only
+      // Create members for new teams
       for (const team of newTeams) {
         const membersToCreate = [];
-
         // Add controllers
         for (let i = 1; i <= config.controllersPerTeam; i++) {
           membersToCreate.push({
@@ -164,8 +183,7 @@ export const initializeTeams = async (req: AuthRequest, res: Response): Promise<
             role: 'controller' as const,
           });
         }
-
-        // Add viewers (remaining slots)
+        // Add viewers
         const remainingSlots = config.teamSize - config.controllersPerTeam;
         for (let i = 1; i <= remainingSlots; i++) {
           membersToCreate.push({
@@ -174,29 +192,19 @@ export const initializeTeams = async (req: AuthRequest, res: Response): Promise<
             role: 'viewer' as const,
           });
         }
-
-        await db.insert(teamMembers).values(membersToCreate);
-      }
-    }
-    // If we need FEWER teams, delete excess teams
-    else if (targetTeamCount < currentTeamCount) {
-      // Delete teams with teamNumber > targetTeamCount
-      for (let i = targetTeamCount + 1; i <= currentTeamCount; i++) {
-        const teamToDelete = existingTeams.find(t => t.teamNumber === i);
-        if (teamToDelete) {
-          await db.delete(teams).where(eq(teams.id, teamToDelete.id));
+        if (membersToCreate.length > 0) {
+          await db.insert(teamMembers).values(membersToCreate);
         }
       }
-      createdTeams = existingTeams.filter(t => t.teamNumber <= targetTeamCount);
+      finalTeams = [...finalTeams, ...newTeams];
     }
 
+    // Sort final teams by number
+    finalTeams.sort((a, b) => a.teamNumber - b.teamNumber);
+
     res.json({
-      message: targetTeamCount > currentTeamCount
-        ? `Added ${targetTeamCount - currentTeamCount} new team(s)`
-        : targetTeamCount < currentTeamCount
-          ? `Removed ${currentTeamCount - targetTeamCount} team(s)`
-          : 'No changes needed',
-      teams: createdTeams
+      message: `Teams initialized. Added: ${teamsToCreate.length}, Removed: ${teamsToDeleteIds.length}`,
+      teams: finalTeams
     });
   } catch (error) {
     console.error('Initialize teams error:', error);
