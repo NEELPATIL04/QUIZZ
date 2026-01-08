@@ -1,0 +1,7 @@
+{
+    "questionNumber": 8,
+    "title": "Curl HTTP Test",
+    "points": 10,
+    "questionType": "multiple_choice",
+    "options": "[{\"key\":\"A\",\"text\":\"UpdatedViaCurlHTTP\"}]"
+}

@@ -89,7 +89,7 @@ export default function MultipleChoiceChallenge({
             // This matches how correctAnswer is stored in the database
             const answerPayload = isMultiSelect
                 ? JSON.stringify(selectedOptions)
-                : selectedOptions[0];
+                : selectedOptions[0]; // Send "A" directly if single select
 
             await onSubmit(answerPayload, timeTaken, startTime);
             setIsSubmitted(true);
