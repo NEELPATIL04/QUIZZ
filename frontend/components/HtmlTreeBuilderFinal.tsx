@@ -307,34 +307,37 @@ export default function HtmlTreeBuilderFinal({
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-900 via-cyan-900 to-blue-900 p-6">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        {/* Left: Previous Button (Swapped from Right) - Fixed Width */}
-        <div className="w-64 flex justify-start">
-          {!readOnly && hasPreviousQuestion && onPrevious && (
-            <Button onClick={onPrevious} size="lg" variant="outline" className="bg-cyan-700 hover:bg-cyan-600 text-white font-bold px-8 py-3 border-cyan-500">
-              ← Previous Question
-            </Button>
-          )}
+      <div className="mb-6 flex flex-col gap-4">
+        {/* Top Row: Navigation Buttons & Timer */}
+        <div className="flex items-center justify-between w-full">
+          {/* Left: Previous Button */}
+          <div>
+            {!readOnly && hasPreviousQuestion && onPrevious && (
+              <Button onClick={onPrevious} size="sm" variant="outline" className="bg-cyan-700/80 hover:bg-cyan-600 text-white font-semibold px-4 py-2 text-sm border-cyan-500">
+                ← Previous
+              </Button>
+            )}
+          </div>
+
+          {/* Right: Next Button + Timer */}
+          <div className="flex items-center gap-3">
+            {!readOnly && !isSubmitted && (
+              <div className="flex items-center gap-2 bg-cyan-800/80 px-4 py-2 rounded-lg border border-cyan-500/50 shadow-md">
+                <Clock className="w-4 h-4 text-cyan-200" />
+                <span className="text-white font-mono font-bold text-lg">{formatTime(elapsedTime)}</span>
+              </div>
+            )}
+            {!readOnly && hasNextQuestion && onNext && (
+              <Button onClick={onNext} size="sm" className={nextQuestionIsBidRound ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-4 py-2 text-sm animate-pulse" : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-4 py-2 text-sm"}>
+                {nextQuestionIsBidRound ? "Bid Round →" : "Next →"}
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="flex-1 text-center">
-          <h1 className="text-3xl font-bold text-white mb-2">Question {question.questionNumber}: {question.title}</h1>
-          <p className="text-cyan-200 text-lg">{question.points} points</p>
-        </div>
-
-        {/* Right: Next Button + Timer (Next Swapped from Left) - Fixed Width */}
-        <div className="w-64 flex justify-end items-center gap-4">
-          {!readOnly && hasNextQuestion && onNext && (
-            <Button onClick={onNext} size="lg" className={nextQuestionIsBidRound ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 animate-pulse" : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3"}>
-              {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}
-            </Button>
-          )}
-          {!readOnly && !isSubmitted && (
-            <div className="flex items-center gap-3 bg-cyan-800 px-6 py-3 rounded-xl border-2 border-cyan-600 shadow-lg">
-              <Clock className="w-6 h-6 text-cyan-200" />
-              <span className="text-2xl font-mono font-bold text-white">{formatTime(elapsedTime)}</span>
-            </div>
-          )}
+        <div className="text-center">
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">Question {question.questionNumber}: {question.title}</h1>
+          <p className="text-cyan-200 text-base">{question.points} points</p>
         </div>
       </div>
 

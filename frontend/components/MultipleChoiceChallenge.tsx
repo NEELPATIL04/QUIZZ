@@ -85,9 +85,16 @@ export default function MultipleChoiceChallenge({
         const timeTaken = Math.floor((new Date().getTime() - startTime.getTime()) / 1000);
 
         try {
-            // For multi-select, send full array stringified. For single, send the string.
-            // Backend now handles both, but let's be consistent.
-            const answerPayload = isMultiSelect ? JSON.stringify(selectedOptions) : selectedOptions[0];
+            // Convert selected keys to option texts (values)
+            // For multi-select, send array of texts. For single-select, send single text.
+            const selectedTexts = selectedOptions.map(key => {
+                const option = question.options.find(opt => opt.key === key);
+                return option?.text || key;
+            });
+
+            const answerPayload = isMultiSelect
+                ? JSON.stringify(selectedTexts)
+                : selectedTexts[0];
 
             await onSubmit(answerPayload, timeTaken, startTime);
             setIsSubmitted(true);

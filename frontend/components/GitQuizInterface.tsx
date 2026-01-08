@@ -290,52 +290,54 @@ export default function GitQuizInterface({
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
       {/* Header with Navigation and Timer */}
-      <div className="mb-6 flex items-center justify-between">
-        {/* Left: Previous Button (Swapped from Right) - Fixed Width */}
-        <div className="w-64 flex justify-start items-center gap-4">
-          {!readOnly && hasPreviousQuestion && onPrevious && (
-            <Button
-              onClick={onPrevious}
-              size="lg"
-              variant="outline"
-              className="bg-slate-700 hover:bg-slate-600 text-white font-bold px-8 py-3 text-base border-slate-500"
-            >
-              ← Previous Question
-            </Button>
-          )}
+      <div className="mb-6 flex flex-col gap-4">
+        {/* Top Row: Navigation Buttons & Timer */}
+        <div className="flex items-center justify-between w-full">
+          {/* Left: Previous Button - Fixed Width */}
+          <div className="flex justify-start items-center gap-4">
+            {!readOnly && hasPreviousQuestion && onPrevious && (
+              <Button
+                onClick={onPrevious}
+                size="sm"
+                variant="outline"
+                className="bg-slate-700/80 hover:bg-slate-600 text-white font-semibold px-4 py-2 text-sm border-slate-500"
+              >
+                ← Previous
+              </Button>
+            )}
+          </div>
+
+          {/* Right: Next Button + Timer */}
+          <div className="flex justify-end items-center gap-3">
+            {!readOnly && !isSubmitted && (
+              <div className="flex items-center gap-2 bg-slate-800/80 px-4 py-2 rounded-lg border border-slate-600 shadow-md">
+                <Clock className="w-4 h-4 text-blue-400" />
+                <span className="text-white font-mono font-bold text-lg">
+                  {formatTime(elapsedTime)}
+                </span>
+              </div>
+            )}
+            {!readOnly && hasNextQuestion && onNext && (
+              <Button
+                onClick={onNext}
+                size="sm"
+                className={nextQuestionIsBidRound
+                  ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-4 py-2 text-sm animate-pulse"
+                  : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold px-4 py-2 text-sm"
+                }
+              >
+                {nextQuestionIsBidRound ? "Bid Round →" : "Next →"}
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Center: Title */}
-        <div className="flex-1 text-center">
-          <h1 className="text-3xl font-bold text-white mb-2">
+        {/* Bottom Row: Title (Centered) */}
+        <div className="text-center">
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">
             Question {question.questionNumber}: {question.title}
           </h1>
-          <p className="text-slate-300 text-lg">{question.points} points</p>
-        </div>
-
-        {/* Right: Next Button + Timer (Next Swapped from Left) - Fixed Width */}
-        <div className="w-64 flex justify-end items-center gap-4">
-          {!readOnly && hasNextQuestion && onNext && (
-            <Button
-              onClick={onNext}
-              size="lg"
-              className={nextQuestionIsBidRound
-                ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 text-base animate-pulse"
-                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold px-8 py-3 text-base"
-              }
-            >
-              {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}
-            </Button>
-          )}
-
-          {!readOnly && !isSubmitted && (
-            <div className="flex items-center gap-3 bg-slate-800 px-6 py-3 rounded-xl border-2 border-slate-600 shadow-lg">
-              <Clock className="w-6 h-6 text-blue-400" />
-              <span className="text-2xl font-mono font-bold text-white">
-                {formatTime(elapsedTime)}
-              </span>
-            </div>
-          )}
+          <p className="text-slate-300 text-base">{question.points} points</p>
         </div>
       </div>
 

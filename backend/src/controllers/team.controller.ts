@@ -154,6 +154,9 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
   try {
     const { teamNumber, questionId, answer, timeTaken, timeStarted } = req.body;
 
+    console.log(`[submitAnswer] Team ${teamNumber} submitting answer for question ${questionId}`);
+    console.log(`[submitAnswer] Answer received:`, answer);
+
     if (!teamNumber || !questionId || !answer) {
       res.status(400).json({ error: 'Team number, question ID, and answer are required' });
       return;
@@ -174,6 +177,10 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
       res.status(404).json({ error: 'Question not found' });
       return;
     }
+
+    console.log(`[submitAnswer] Question type: ${question.questionType}`);
+    console.log(`[submitAnswer] Question title: ${question.title}`);
+    console.log(`[submitAnswer] Correct answer stored: "${question.correctAnswer}"`);
 
     if (!question.isEnabled) {
       res.status(403).json({ error: 'This question is not currently available' });
@@ -388,6 +395,10 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
       const cleanAnswer = answer ? String(answer).trim() : '';
       const cleanCorrect = question.correctAnswer ? String(question.correctAnswer).trim() : '';
 
+      console.log(`[submitAnswer] Validating answer for question type: ${question.questionType}`);
+      console.log(`[submitAnswer] User answer: "${cleanAnswer}"`);
+      console.log(`[submitAnswer] Correct answer: "${cleanCorrect}"`);
+
       try {
         if (cleanAnswer.startsWith('[') && cleanCorrect.startsWith('[')) {
             const parsedAnswer = JSON.parse(cleanAnswer);
@@ -397,17 +408,22 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
                  const sortedAnswer = [...parsedAnswer].sort().map(s => String(s).trim().toLowerCase());
                  const sortedCorrect = [...parsedCorrect].sort().map(s => String(s).trim().toLowerCase());
                  isCorrect = JSON.stringify(sortedAnswer) === JSON.stringify(sortedCorrect);
+                 console.log(`[submitAnswer] Array comparison: ${isCorrect}`);
             } else {
                  isCorrect = cleanAnswer.toLowerCase() === cleanCorrect.toLowerCase();
+                 console.log(`[submitAnswer] String comparison (non-array JSON): ${isCorrect}`);
             }
         } else {
             isCorrect = cleanAnswer.toLowerCase() === cleanCorrect.toLowerCase();
+            console.log(`[submitAnswer] String comparison: ${isCorrect}`);
         }
       } catch (e) {
         isCorrect = cleanAnswer.toLowerCase() === cleanCorrect.toLowerCase();
+        console.log(`[submitAnswer] String comparison (fallback): ${isCorrect}`);
       }
-      
+
       pointsAwarded = isCorrect ? question.points : 0;
+      console.log(`[submitAnswer] Points awarded: ${pointsAwarded}/${question.points}`);
     }
 
     // For true_false_drag_drop, we need to also send correctCount and totalCount

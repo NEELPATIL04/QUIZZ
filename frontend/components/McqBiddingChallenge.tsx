@@ -180,82 +180,85 @@ export default function McqBiddingChallenge({
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-900 via-cyan-900 to-blue-900 p-8">
       {/* Header with Navigation */}
-      <div className="mb-6 flex items-center justify-between w-full">
-        {/* Left: Previous Button (Swapped from Right) - Fixed Width */}
-        <div className="w-64 flex justify-start items-center gap-3">
-          {/* Previous button (when there's a previous question and we're not on first) */}
-          {hasPreviousQuestion && onPrevious && !isFirstBidQuestion && (
-            <Button
-              onClick={onPrevious}
-              size="lg"
-              variant="outline"
-              className="bg-purple-700 hover:bg-purple-600 text-white font-bold px-8 py-3 text-base border-purple-500"
-            >
-              ← Previous
-            </Button>
-          )}
+      <div className="mb-6 flex flex-col gap-4 w-full">
+        {/* Top Row: Navigation Buttons & Score */}
+        <div className="flex items-center justify-between w-full">
+          {/* Left: Previous Button - Fixed Width */}
+          <div className="flex justify-start items-center gap-3">
+            {/* Previous button (when there's a previous question and we're not on first) */}
+            {hasPreviousQuestion && onPrevious && !isFirstBidQuestion && (
+              <Button
+                onClick={onPrevious}
+                size="sm"
+                variant="outline"
+                className="bg-purple-700/80 hover:bg-purple-600 text-white font-semibold px-4 py-2 text-sm border-purple-500"
+              >
+                ← Previous
+              </Button>
+            )}
+          </div>
+
+          {/* Right: Next Buttons + Score */}
+          <div className="flex justify-end items-center gap-3">
+            {/* Exit Bid Round button (always on first question) */}
+            {isFirstBidQuestion && onExitBidRound && (
+              <Button
+                onClick={onExitBidRound}
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 text-sm"
+              >
+                ← Exit Bid Round
+              </Button>
+            )}
+
+            {/* Next Question button (when there's a next bid round question) */}
+            {hasNextQuestion && onNext && nextQuestionIsBidRound && (
+              <Button
+                onClick={onNext}
+                size="sm"
+                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-4 py-2 text-sm"
+              >
+                Next Question →
+              </Button>
+            )}
+
+            {/* Exit Bid Round button on last question (when no more bid round questions ahead) */}
+            {(!nextQuestionIsBidRound || !hasNextQuestion) && !isFirstBidQuestion && onExitBidRound && (
+              <Button
+                onClick={onExitBidRound}
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 text-sm"
+              >
+                Exit Bid Round →
+              </Button>
+            )}
+
+            {/* Team Score */}
+            <Card className="bg-white/95 border border-slate-200 shadow-sm">
+              <CardContent className="py-1 px-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-blue-600" />
+                  <div>
+                    <p className="text-[10px] text-slate-500 uppercase font-bold leading-none">Score</p>
+                    <p className="text-sm font-bold text-slate-900 leading-none">{teamScore}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* Center: Title */}
+        {/* Bottom Row: Title (Centered) */}
         <div className="flex-1 flex flex-col items-center">
           <div className="flex items-center justify-center gap-3 mb-2">
-            <span className="inline-block bg-purple-600 text-white px-3 py-1 rounded-md text-sm font-semibold">
+            <span className="inline-block bg-purple-600 text-white px-3 py-1 rounded-md text-xs font-semibold">
               Question {question.questionNumber}
             </span>
-            <span className="inline-block bg-blue-600 text-white px-3 py-1 rounded-md text-sm font-semibold">
+            <span className="inline-block bg-blue-600 text-white px-3 py-1 rounded-md text-xs font-semibold">
               MCQ Bidding
             </span>
           </div>
-          <h1 className="text-3xl font-bold text-white text-center">Team {teamNumber}</h1>
-        </div>
-
-        {/* Right: Next Buttons + Score (Swapped from Left) - Fixed Width */}
-        <div className="w-64 flex justify-end items-center gap-4">
-          {/* Exit Bid Round button (always on first question) */}
-          {isFirstBidQuestion && onExitBidRound && (
-            <Button
-              onClick={onExitBidRound}
-              size="lg"
-              className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 text-base"
-            >
-              ← Exit Bid Round
-            </Button>
-          )}
-
-          {/* Next Question button (when there's a next bid round question) */}
-          {hasNextQuestion && onNext && nextQuestionIsBidRound && (
-            <Button
-              onClick={onNext}
-              size="lg"
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3 text-base"
-            >
-              Next Question →
-            </Button>
-          )}
-
-          {/* Exit Bid Round button on last question (when no more bid round questions ahead) */}
-          {(!nextQuestionIsBidRound || !hasNextQuestion) && !isFirstBidQuestion && onExitBidRound && (
-            <Button
-              onClick={onExitBidRound}
-              size="lg"
-              className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 text-base"
-            >
-              Exit Bid Round →
-            </Button>
-          )}
-
-          {/* Team Score */}
-          <Card className="bg-white/95 border border-slate-200 shadow-lg">
-            <CardContent className="py-2 px-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase font-bold">Score</p>
-                  <p className="text-xl font-bold text-slate-900">{teamScore}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <h1 className="text-2xl md:text-3xl font-bold text-white text-center">Team {teamNumber}</h1>
         </div>
       </div>
 

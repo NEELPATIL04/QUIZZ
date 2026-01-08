@@ -350,77 +350,83 @@ export default function JsEngineChallenge({
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 p-6 pb-20">
       {/* Header with Navigation */}
-      <div className="mb-6 flex items-center justify-between">
-        {/* Left: Previous Button (Swapped from Right) - Fixed Width */}
-        <div className="w-64 flex justify-start">
-          {!readOnly && hasPreviousQuestion && onPrevious && (
-            <Button
-              onClick={onPrevious}
-              size="lg"
-              variant="outline"
-              className="bg-purple-700 hover:bg-purple-600 text-white font-bold px-8 py-3 text-base border-purple-500"
-            >
-              ← Previous Question
-            </Button>
-          )}
-        </div>
-
-        {/* Center: Title */}
-        <div className="flex-1 text-center">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Question {question.questionNumber}: JavaScript Engine Execution Flow
-          </h1>
-          <p className="text-purple-200 text-lg">Understand how the JavaScript engine executes code!</p>
-        </div>
-
-        {/* Right: Next Button + Controls (Next Swapped from Left) - Fixed Width */}
-        <div className="w-64 flex justify-end items-center gap-4">
-          {/* Team Score Display */}
-          {teamScore !== undefined && (
-            <div className="bg-slate-800 px-4 py-2 rounded-lg border border-slate-600 shadow-sm">
-              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Total Score</p>
-              <p className="text-xl font-bold text-white leading-none">{teamScore}</p>
-            </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            {!readOnly && hasNextQuestion && onNext && (
+      <div className="mb-6 flex flex-col gap-4">
+        {/* Top Row: Navigation Buttons */}
+        <div className="flex items-center justify-between w-full">
+          {/* Left: Previous Button - Fixed Width */}
+          <div className="flex justify-start">
+            {!readOnly && hasPreviousQuestion && onPrevious && (
               <Button
-                onClick={onNext}
-                size="lg"
-                className={nextQuestionIsBidRound
-                  ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 text-base animate-pulse"
-                  : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3 text-base"
-                }
+                onClick={onPrevious}
+                size="sm"
+                variant="outline"
+                className="bg-purple-700/80 hover:bg-purple-600 text-white font-semibold px-4 py-2 text-sm border-purple-500"
               >
-                {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}
+                ← Previous
               </Button>
             )}
-            <Button
-              onClick={undo}
-              disabled={!isController || readOnly || isSubmitted || historyIndex === 0}
-              variant="outline"
-              className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500"
-            >
-              <Undo className="h-4 w-4" />
-            </Button>
-            <Button
-              onClick={redo}
-              disabled={!isController || readOnly || isSubmitted || historyIndex === history.length - 1}
-              variant="outline"
-              className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500"
-            >
-              <Redo className="h-4 w-4" />
-            </Button>
-            <Button
-              onClick={reset}
-              disabled={!isController || readOnly}
-              variant="outline"
-              className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
           </div>
+
+          {/* Right: Next Button + Controls */}
+          <div className="flex justify-end items-center gap-3">
+            {/* Team Score Display */}
+            {teamScore !== undefined && (
+              <div className="bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-600 shadow-sm hidden sm:block">
+                <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Score</p>
+                <p className="text-lg font-bold text-white leading-none">{teamScore}</p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              {!readOnly && hasNextQuestion && onNext && (
+                <Button
+                  onClick={onNext}
+                  size="sm"
+                  className={nextQuestionIsBidRound
+                    ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-4 py-2 text-sm animate-pulse"
+                    : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-4 py-2 text-sm"
+                  }
+                >
+                  {nextQuestionIsBidRound ? "Bid Round →" : "Next →"}
+                </Button>
+              )}
+              <Button
+                onClick={undo}
+                disabled={!isController || readOnly || isSubmitted || historyIndex === 0}
+                variant="outline"
+                size="icon"
+                className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500 w-8 h-8"
+              >
+                <Undo className="h-4 w-4" />
+              </Button>
+              <Button
+                onClick={redo}
+                disabled={!isController || readOnly || isSubmitted || historyIndex === history.length - 1}
+                variant="outline"
+                size="icon"
+                className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500 w-8 h-8"
+              >
+                <Redo className="h-4 w-4" />
+              </Button>
+              <Button
+                onClick={reset}
+                disabled={!isController || readOnly}
+                variant="outline"
+                size="icon"
+                className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500 w-8 h-8"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Row: Title (Centered) */}
+        <div className="text-center">
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">
+            Question {question.questionNumber}: JavaScript Engine Execution Flow
+          </h1>
+          <p className="text-purple-200 text-base">Understand how the JavaScript engine executes code!</p>
         </div>
       </div>
 
