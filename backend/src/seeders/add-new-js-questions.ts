@@ -31,7 +31,7 @@ console.log(res, arr);
     {
         questionNumber: 107,
         questionType: 'multiple_choice' as const,
-        title: 'JavaScript Infinite Loop & Push',
+        title: 'JavaScript Question',
         description: `\`\`\`javascript
 let arr = [1, 2, 3];
 

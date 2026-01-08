@@ -181,8 +181,36 @@ export default function McqBiddingChallenge({
     <div className="min-h-screen bg-gradient-to-br from-teal-900 via-cyan-900 to-blue-900 p-8">
       {/* Header with Navigation */}
       <div className="mb-6 flex items-center justify-between w-full">
-        {/* Left: Navigation Buttons */}
+        {/* Left: Previous Button (Swapped from Right) */}
         <div className="flex items-center gap-3">
+          {/* Previous button (when there's a previous question and we're not on first) */}
+          {hasPreviousQuestion && onPrevious && !isFirstBidQuestion && (
+            <Button
+              onClick={onPrevious}
+              size="lg"
+              variant="outline"
+              className="bg-purple-700 hover:bg-purple-600 text-white font-bold px-8 py-3 text-base border-purple-500"
+            >
+              ← Previous
+            </Button>
+          )}
+        </div>
+
+        {/* Center: Title */}
+        <div>
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <span className="inline-block bg-purple-600 text-white px-3 py-1 rounded-md text-sm font-semibold">
+              Question {question.questionNumber}
+            </span>
+            <span className="inline-block bg-blue-600 text-white px-3 py-1 rounded-md text-sm font-semibold">
+              MCQ Bidding
+            </span>
+          </div>
+          <h1 className="text-3xl font-bold text-white text-center">Team {teamNumber}</h1>
+        </div>
+
+        {/* Right: Next Buttons + Score (Swapped from Left) */}
+        <div className="flex items-center gap-4">
           {/* Exit Bid Round button (always on first question) */}
           {isFirstBidQuestion && onExitBidRound && (
             <Button
@@ -213,33 +241,6 @@ export default function McqBiddingChallenge({
               className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 text-base"
             >
               Exit Bid Round →
-            </Button>
-          )}
-        </div>
-
-        <div>
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <span className="inline-block bg-purple-600 text-white px-3 py-1 rounded-md text-sm font-semibold">
-              Question {question.questionNumber}
-            </span>
-            <span className="inline-block bg-blue-600 text-white px-3 py-1 rounded-md text-sm font-semibold">
-              MCQ Bidding
-            </span>
-          </div>
-          <h1 className="text-3xl font-bold text-white text-center">Team {teamNumber}</h1>
-        </div>
-
-        {/* Right: Previous Button + Score */}
-        <div className="flex items-center gap-4">
-          {/* Previous button (when there's a previous question and we're not on first) */}
-          {hasPreviousQuestion && onPrevious && !isFirstBidQuestion && (
-            <Button
-              onClick={onPrevious}
-              size="lg"
-              variant="outline"
-              className="bg-purple-700 hover:bg-purple-600 text-white font-bold px-8 py-3 text-base border-purple-500"
-            >
-              ← Previous
             </Button>
           )}
 

@@ -52,7 +52,8 @@ export default function JsEngineChallenge({
   hasPreviousQuestion,
   isSubmitted: isSubmittedProp,
   nextQuestionIsBidRound = false,
-}: JsEngineChallengeProps) {
+  teamScore,
+}: JsEngineChallengeProps & { teamScore?: number }) {
   const [blocks, setBlocks] = useState<CodeBlock[]>(initialCodeBlocks);
   const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   const [score, setScore] = useState<number | null>(null);
@@ -350,18 +351,16 @@ export default function JsEngineChallenge({
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 p-6 pb-20">
       {/* Header with Navigation */}
       <div className="mb-6 flex items-center justify-between">
-        {/* Left: Next Question Button (always visible if next exists) */}
+        {/* Left: Previous Button (Swapped from Right) */}
         <div>
-          {!readOnly && hasNextQuestion && onNext && (
+          {!readOnly && hasPreviousQuestion && onPrevious && (
             <Button
-              onClick={onNext}
+              onClick={onPrevious}
               size="lg"
-              className={nextQuestionIsBidRound
-                ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 text-base animate-pulse"
-                : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3 text-base"
-              }
+              variant="outline"
+              className="bg-purple-700 hover:bg-purple-600 text-white font-bold px-8 py-3 text-base border-purple-500"
             >
-              {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}
+              ← Previous Question
             </Button>
           )}
         </div>
@@ -374,45 +373,54 @@ export default function JsEngineChallenge({
           <p className="text-purple-200 text-lg">Understand how the JavaScript engine executes code!</p>
         </div>
 
-        {/* Right: Previous Button + Controls */}
-        <div className="flex items-center gap-2">
-          {!readOnly && hasPreviousQuestion && onPrevious && (
-            <Button
-              onClick={onPrevious}
-              size="lg"
-              variant="outline"
-              className="bg-purple-700 hover:bg-purple-600 text-white font-bold px-8 py-3 text-base border-purple-500"
-            >
-              ← Previous Question
-            </Button>
+        {/* Right: Next Button + Controls (Next Swapped from Left) */}
+        <div className="flex items-center gap-4">
+          {/* Team Score Display */}
+          {teamScore !== undefined && (
+            <div className="bg-slate-800 px-4 py-2 rounded-lg border border-slate-600 shadow-sm">
+              <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-0.5">Total Score</p>
+              <p className="text-xl font-bold text-white leading-none">{teamScore}</p>
+            </div>
           )}
-          <Button
-            onClick={undo}
-            disabled={!isController || readOnly || isSubmitted || historyIndex === 0}
-            variant="outline"
-            className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500"
-          >
-            <Undo className="h-4 w-4 mr-2" />
-            Undo
-          </Button>
-          <Button
-            onClick={redo}
-            disabled={!isController || readOnly || isSubmitted || historyIndex === history.length - 1}
-            variant="outline"
-            className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500"
-          >
-            <Redo className="h-4 w-4 mr-2" />
-            Redo
-          </Button>
-          <Button
-            onClick={reset}
-            disabled={!isController || readOnly}
-            variant="outline"
-            className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500"
-          >
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Reset
-          </Button>
+
+          <div className="flex items-center gap-2">
+            {!readOnly && hasNextQuestion && onNext && (
+              <Button
+                onClick={onNext}
+                size="lg"
+                className={nextQuestionIsBidRound
+                  ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 text-base animate-pulse"
+                  : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3 text-base"
+                }
+              >
+                {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}
+              </Button>
+            )}
+            <Button
+              onClick={undo}
+              disabled={!isController || readOnly || isSubmitted || historyIndex === 0}
+              variant="outline"
+              className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500"
+            >
+              <Undo className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={redo}
+              disabled={!isController || readOnly || isSubmitted || historyIndex === history.length - 1}
+              variant="outline"
+              className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500"
+            >
+              <Redo className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={reset}
+              disabled={!isController || readOnly}
+              variant="outline"
+              className="bg-slate-700 hover:bg-slate-600 text-white border-slate-500"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -653,6 +661,6 @@ export default function JsEngineChallenge({
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

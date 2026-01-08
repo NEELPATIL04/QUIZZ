@@ -291,300 +291,300 @@ export default function GitQuizInterface({
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
       {/* Header with Navigation and Timer */}
       <div className="mb-6 flex items-center justify-between">
-          {/* Left: Next Question Button (always visible if next exists) */}
-          <div>
-            {!readOnly && hasNextQuestion && onNext && (
-              <Button
-                onClick={onNext}
-                size="lg"
-                className={nextQuestionIsBidRound
-                  ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 text-base animate-pulse"
-                  : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold px-8 py-3 text-base"
-                }
-              >
-                {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}
-              </Button>
-            )}
-          </div>
-
-          {/* Center: Title */}
-          <div className="flex-1 text-center">
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Question {question.questionNumber}: {question.title}
-            </h1>
-            <p className="text-slate-300 text-lg">{question.points} points</p>
-          </div>
-
-          {/* Right: Previous Button + Timer */}
-          <div className="flex items-center gap-4">
-            {!readOnly && hasPreviousQuestion && onPrevious && (
-              <Button
-                onClick={onPrevious}
-                size="lg"
-                variant="outline"
-                className="bg-slate-700 hover:bg-slate-600 text-white font-bold px-8 py-3 text-base border-slate-500"
-              >
-                ← Previous Question
-              </Button>
-            )}
-            {!readOnly && !isSubmitted && (
-              <div className="flex items-center gap-3 bg-slate-800 px-6 py-3 rounded-xl border-2 border-slate-600 shadow-lg">
-                <Clock className="w-6 h-6 text-blue-400" />
-                <span className="text-2xl font-mono font-bold text-white">
-                  {formatTime(elapsedTime)}
-                </span>
-              </div>
-            )}
-          </div>
+        {/* Left: Previous Button (Swapped from Right) */}
+        <div className="flex items-center gap-4">
+          {!readOnly && hasPreviousQuestion && onPrevious && (
+            <Button
+              onClick={onPrevious}
+              size="lg"
+              variant="outline"
+              className="bg-slate-700 hover:bg-slate-600 text-white font-bold px-8 py-3 text-base border-slate-500"
+            >
+              ← Previous Question
+            </Button>
+          )}
         </div>
 
-        {/* Story Section - Full Width */}
-        <Card className="bg-gradient-to-br from-blue-900 to-indigo-900 border-2 border-blue-600 shadow-2xl mb-6">
-          <CardContent className="p-8">
-            <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
-              </svg>
-              The Story
-            </h2>
-            <div className="text-slate-100 whitespace-pre-wrap leading-relaxed text-lg">
-              {question.story}
+        {/* Center: Title */}
+        <div className="flex-1 text-center">
+          <h1 className="text-3xl font-bold text-white mb-2">
+            Question {question.questionNumber}: {question.title}
+          </h1>
+          <p className="text-slate-300 text-lg">{question.points} points</p>
+        </div>
+
+        {/* Right: Next Button + Timer (Next Swapped from Left) */}
+        <div className="flex items-center gap-4">
+          {!readOnly && hasNextQuestion && onNext && (
+            <Button
+              onClick={onNext}
+              size="lg"
+              className={nextQuestionIsBidRound
+                ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 text-base animate-pulse"
+                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold px-8 py-3 text-base"
+              }
+            >
+              {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}
+            </Button>
+          )}
+
+          {!readOnly && !isSubmitted && (
+            <div className="flex items-center gap-3 bg-slate-800 px-6 py-3 rounded-xl border-2 border-slate-600 shadow-lg">
+              <Clock className="w-6 h-6 text-blue-400" />
+              <span className="text-2xl font-mono font-bold text-white">
+                {formatTime(elapsedTime)}
+              </span>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
+      </div>
 
-        {/* Two Column Layout: Commands (50%) | Terminal (50%) */}
-        <div className="grid grid-cols-2 gap-6 mb-6">
-          {/* Command Stack Column */}
-          <Card className="bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-slate-500 shadow-2xl">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Available Commands
-              </h2>
+      {/* Story Section - Full Width */}
+      <Card className="bg-gradient-to-br from-blue-900 to-indigo-900 border-2 border-blue-600 shadow-2xl mb-6">
+        <CardContent className="p-8">
+          <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+            </svg>
+            The Story
+          </h2>
+          <div className="text-slate-100 whitespace-pre-wrap leading-relaxed text-lg">
+            {question.story}
+          </div>
+        </CardContent>
+      </Card>
 
-              <p className="text-sm text-slate-300 mb-4">
-                {readOnly ? 'Quiz completed' : 'Drag commands to terminal or click to execute'}
-              </p>
+      {/* Two Column Layout: Commands (50%) | Terminal (50%) */}
+      <div className="grid grid-cols-2 gap-6 mb-6">
+        {/* Command Stack Column */}
+        <Card className="bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-slate-500 shadow-2xl">
+          <CardContent className="p-6">
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Available Commands
+            </h2>
 
-              <div className="space-y-3 mb-6">
-                {availableCommands.map((cmd, idx) => (
-                  <div
-                    key={idx}
-                    draggable={!readOnly && !isSubmitted}
-                    onDragStart={() => handleDragStart(cmd)}
-                    onDragEnd={handleDragEnd}
-                    onClick={() => !readOnly && !isSubmitted && executeCommand(cmd)}
-                    className={`
+            <p className="text-sm text-slate-300 mb-4">
+              {readOnly ? 'Quiz completed' : 'Drag commands to terminal or click to execute'}
+            </p>
+
+            <div className="space-y-3 mb-6">
+              {availableCommands.map((cmd, idx) => (
+                <div
+                  key={idx}
+                  draggable={!readOnly && !isSubmitted}
+                  onDragStart={() => handleDragStart(cmd)}
+                  onDragEnd={handleDragEnd}
+                  onClick={() => !readOnly && !isSubmitted && executeCommand(cmd)}
+                  className={`
                       p-4 bg-slate-900 border-2 border-slate-600 rounded-lg shadow-lg
                       transition-all duration-200
                       ${!readOnly && !isSubmitted ? 'cursor-pointer hover:border-blue-400 hover:shadow-blue-500/50 hover:scale-105' : 'cursor-default opacity-50'}
                       ${draggedCommand === cmd ? 'opacity-50 scale-95' : ''}
                     `}
-                  >
-                    <code className="text-sm font-mono text-green-400 font-semibold">
-                      {cmd}
-                    </code>
-                  </div>
-                ))}
+                >
+                  <code className="text-sm font-mono text-green-400 font-semibold">
+                    {cmd}
+                  </code>
+                </div>
+              ))}
 
-                {availableCommands.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-green-400 text-lg font-semibold">✅ All commands used!</p>
-                    <p className="text-slate-400 text-sm mt-2">Scroll down to submit your answer</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Control Buttons - Only for Controllers */}
-              {isController && !readOnly && !isSubmitted && (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button
-                      onClick={handleUndo}
-                      disabled={historyIndex <= 0}
-                      variant="outline"
-                      size="sm"
-                      className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700"
-                    >
-                      <Undo2 className="w-4 h-4 mr-1" />
-                      Undo
-                    </Button>
-                    <Button
-                      onClick={handleRedo}
-                      disabled={historyIndex >= commandHistory.length - 1}
-                      variant="outline"
-                      size="sm"
-                      className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700"
-                    >
-                      <Redo2 className="w-4 h-4 mr-1" />
-                      Redo
-                    </Button>
-                    <Button
-                      onClick={handleReset}
-                      variant="outline"
-                      size="sm"
-                      className="bg-slate-800 border-slate-600 text-white hover:bg-red-900"
-                    >
-                      <RotateCcw className="w-4 h-4 mr-1" />
-                      Reset
-                    </Button>
-                  </div>
-
+              {availableCommands.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-green-400 text-lg font-semibold">✅ All commands used!</p>
+                  <p className="text-slate-400 text-sm mt-2">Scroll down to submit your answer</p>
                 </div>
               )}
-
-              {/* Results */}
-              {isSubmitted && result && (
-                <div className={`p-6 rounded-lg border-2 ${
-                  result.isCorrect
-                    ? 'bg-green-900/50 border-green-500'
-                    : 'bg-red-900/50 border-red-500'
-                }`}>
-                  <div className="flex items-center gap-3 mb-3">
-                    {result.isCorrect ? (
-                      <>
-                        <CheckCircle className="w-8 h-8 text-green-400" />
-                        <h3 className="text-2xl font-bold text-white">Correct!</h3>
-                      </>
-                    ) : (
-                      <>
-                        <XCircle className="w-8 h-8 text-red-400" />
-                        <h3 className="text-2xl font-bold text-white">Incorrect</h3>
-                      </>
-                    )}
-                  </div>
-                  <p className="text-lg text-white">
-                    Points: <span className="font-bold">{result.pointsAwarded}</span>
-                  </p>
-                  <p className="text-lg text-white">
-                    Time: <span className="font-bold">{formatTime(elapsedTime)}</span>
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Git Bash Terminal Column */}
-          <Card className="bg-slate-900 border-4 border-slate-700 shadow-2xl overflow-hidden">
-            {/* Terminal Header */}
-            <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-4 py-2 flex items-center gap-2 border-b border-slate-900">
-              <div className="flex gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-              </div>
-              <div className="flex-1 text-center">
-                <span className="text-sm font-semibold text-slate-200">Git Bash</span>
-              </div>
             </div>
 
-            {/* Terminal Body */}
-            <div
-              className={`
+            {/* Control Buttons - Only for Controllers */}
+            {isController && !readOnly && !isSubmitted && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    onClick={handleUndo}
+                    disabled={historyIndex <= 0}
+                    variant="outline"
+                    size="sm"
+                    className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700"
+                  >
+                    <Undo2 className="w-4 h-4 mr-1" />
+                    Undo
+                  </Button>
+                  <Button
+                    onClick={handleRedo}
+                    disabled={historyIndex >= commandHistory.length - 1}
+                    variant="outline"
+                    size="sm"
+                    className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700"
+                  >
+                    <Redo2 className="w-4 h-4 mr-1" />
+                    Redo
+                  </Button>
+                  <Button
+                    onClick={handleReset}
+                    variant="outline"
+                    size="sm"
+                    className="bg-slate-800 border-slate-600 text-white hover:bg-red-900"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-1" />
+                    Reset
+                  </Button>
+                </div>
+
+              </div>
+            )}
+
+            {/* Results */}
+            {isSubmitted && result && (
+              <div className={`p-6 rounded-lg border-2 ${result.isCorrect
+                  ? 'bg-green-900/50 border-green-500'
+                  : 'bg-red-900/50 border-red-500'
+                }`}>
+                <div className="flex items-center gap-3 mb-3">
+                  {result.isCorrect ? (
+                    <>
+                      <CheckCircle className="w-8 h-8 text-green-400" />
+                      <h3 className="text-2xl font-bold text-white">Correct!</h3>
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-8 h-8 text-red-400" />
+                      <h3 className="text-2xl font-bold text-white">Incorrect</h3>
+                    </>
+                  )}
+                </div>
+                <p className="text-lg text-white">
+                  Points: <span className="font-bold">{result.pointsAwarded}</span>
+                </p>
+                <p className="text-lg text-white">
+                  Time: <span className="font-bold">{formatTime(elapsedTime)}</span>
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Git Bash Terminal Column */}
+        <Card className="bg-slate-900 border-4 border-slate-700 shadow-2xl overflow-hidden">
+          {/* Terminal Header */}
+          <div className="bg-gradient-to-r from-slate-700 to-slate-800 px-4 py-2 flex items-center gap-2 border-b border-slate-900">
+            <div className="flex gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            </div>
+            <div className="flex-1 text-center">
+              <span className="text-sm font-semibold text-slate-200">Git Bash</span>
+            </div>
+          </div>
+
+          {/* Terminal Body */}
+          <div
+            className={`
                 bg-[#0C0C0C] p-6 font-mono text-sm h-[700px] overflow-y-auto
                 transition-all duration-200
                 ${isOverTerminal && !readOnly && !isSubmitted ? 'ring-4 ring-blue-500/50' : ''}
               `}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              {/* Executed Commands */}
-              {allCompletedCommands.map((cmd, index) => (
-                <div key={index} className="mb-3">
-                  {/* Prompt */}
-                  <div className="mb-1">
-                    <span className="text-green-400">user@MINGW64</span>
-                    <span className="text-white"> </span>
-                    <span className="text-yellow-300">~/project</span>
-                    <span className="text-pink-400"> (main)</span>
-                  </div>
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            {/* Executed Commands */}
+            {allCompletedCommands.map((cmd, index) => (
+              <div key={index} className="mb-3">
+                {/* Prompt */}
+                <div className="mb-1">
+                  <span className="text-green-400">user@MINGW64</span>
+                  <span className="text-white"> </span>
+                  <span className="text-yellow-300">~/project</span>
+                  <span className="text-pink-400"> (main)</span>
+                </div>
 
-                  {/* Command */}
-                  <div className="mb-1">
-                    <span className="text-white">$ </span>
-                    <span className={cmd.isError ? 'text-red-400' : 'text-cyan-300'}>{cmd.command}</span>
-                  </div>
+                {/* Command */}
+                <div className="mb-1">
+                  <span className="text-white">$ </span>
+                  <span className={cmd.isError ? 'text-red-400' : 'text-cyan-300'}>{cmd.command}</span>
+                </div>
 
-                  {/* Output */}
-                  {cmd.output && (
-                    <div className={`whitespace-pre-wrap pl-2 mb-2 ${cmd.isError ? 'text-red-400' : 'text-gray-300'}`}>
-                      {cmd.output}
-                    </div>
-                  )}
+                {/* Output */}
+                {cmd.output && (
+                  <div className={`whitespace-pre-wrap pl-2 mb-2 ${cmd.isError ? 'text-red-400' : 'text-gray-300'}`}>
+                    {cmd.output}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Drop Zone Indicator */}
+            {isOverTerminal && !readOnly && !isSubmitted && (
+              <div className="border-2 border-dashed border-blue-400 rounded-lg p-8 text-center animate-pulse bg-blue-500/10">
+                <svg className="w-12 h-12 mx-auto text-blue-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p className="text-blue-400 font-semibold">Drop command here</p>
+              </div>
+            )}
+
+            {/* Current Prompt */}
+            {!readOnly && !isSubmitted && (
+              <div>
+                <div className="mb-1">
+                  <span className="text-green-400">user@MINGW64</span>
+                  <span className="text-white"> </span>
+                  <span className="text-yellow-300">~/project</span>
+                  <span className="text-pink-400"> (main)</span>
+                </div>
+                <div>
+                  <span className="text-white">$ </span>
+                  <span className="animate-pulse text-white">▊</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Submit Button - Bottom (Everyone can see, only controllers can click) */}
+      {!readOnly && !isSubmitted && canSubmit && (
+        <Card className="bg-slate-800 border-2 border-slate-600 mb-6">
+          <CardContent className="p-6">
+            {isController ? (
+              <Button
+                onClick={handleSubmit}
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-6 text-xl shadow-lg"
+              >
+                Submit Answer
+              </Button>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-yellow-400 text-lg font-semibold">⏳ Waiting for controller to submit...</p>
+                <p className="text-slate-400 text-sm mt-2">Only the team controller can submit the answer</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Show Answer */}
+      {showAnswer && (
+        <Card className="bg-gradient-to-r from-emerald-900 to-green-900 border-2 border-green-500">
+          <CardContent className="p-6">
+            <h3 className="text-xl font-bold text-white mb-4">Correct Answer Sequence:</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {question.correctAnswer.map((cmd, idx) => (
+                <div key={idx} className="bg-slate-900 p-3 rounded border border-green-500">
+                  <code className="text-sm font-mono text-green-400">
+                    {idx + 1}. {cmd}
+                  </code>
                 </div>
               ))}
-
-              {/* Drop Zone Indicator */}
-              {isOverTerminal && !readOnly && !isSubmitted && (
-                <div className="border-2 border-dashed border-blue-400 rounded-lg p-8 text-center animate-pulse bg-blue-500/10">
-                  <svg className="w-12 h-12 mx-auto text-blue-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <p className="text-blue-400 font-semibold">Drop command here</p>
-                </div>
-              )}
-
-              {/* Current Prompt */}
-              {!readOnly && !isSubmitted && (
-                <div>
-                  <div className="mb-1">
-                    <span className="text-green-400">user@MINGW64</span>
-                    <span className="text-white"> </span>
-                    <span className="text-yellow-300">~/project</span>
-                    <span className="text-pink-400"> (main)</span>
-                  </div>
-                  <div>
-                    <span className="text-white">$ </span>
-                    <span className="animate-pulse text-white">▊</span>
-                  </div>
-                </div>
-              )}
             </div>
-          </Card>
-        </div>
-
-        {/* Submit Button - Bottom (Everyone can see, only controllers can click) */}
-        {!readOnly && !isSubmitted && canSubmit && (
-          <Card className="bg-slate-800 border-2 border-slate-600 mb-6">
-            <CardContent className="p-6">
-              {isController ? (
-                <Button
-                  onClick={handleSubmit}
-                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-6 text-xl shadow-lg"
-                >
-                  Submit Answer
-                </Button>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-yellow-400 text-lg font-semibold">⏳ Waiting for controller to submit...</p>
-                  <p className="text-slate-400 text-sm mt-2">Only the team controller can submit the answer</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Show Answer */}
-        {showAnswer && (
-          <Card className="bg-gradient-to-r from-emerald-900 to-green-900 border-2 border-green-500">
-            <CardContent className="p-6">
-              <h3 className="text-xl font-bold text-white mb-4">Correct Answer Sequence:</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {question.correctAnswer.map((cmd, idx) => (
-                  <div key={idx} className="bg-slate-900 p-3 rounded border border-green-500">
-                    <code className="text-sm font-mono text-green-400">
-                      {idx + 1}. {cmd}
-                    </code>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          </CardContent>
+        </Card>
+      )}
 
     </div>
   );

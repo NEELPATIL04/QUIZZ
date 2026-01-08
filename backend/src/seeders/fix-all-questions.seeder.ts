@@ -28,7 +28,7 @@ export async function fixAllQuestions() {
       // Q6: Image Overlay (CSS Stacking)
       { num: 6, type: 'html_css_challenge', titleKey: 'Stacking' },
       { num: 7, type: 'multiple_choice', titleKey: 'Map' },
-      { num: 8, type: 'multiple_choice', titleKey: 'Loop' },
+      { num: 8, type: 'multiple_choice', titleKey: 'JavaScript Question' },
       { num: 9, type: 'multiple_choice', titleKey: 'Execution Order - Part 1' },
       { num: 10, type: 'multiple_choice', titleKey: 'Execution Order - Part 2' },
 

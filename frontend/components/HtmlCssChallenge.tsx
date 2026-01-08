@@ -141,18 +141,16 @@ export default function HtmlCssChallenge({
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 p-6">
       {/* Header with Navigation and Timer */}
       <div className="mb-6 flex items-center justify-between">
-        {/* Left: Next Question Button (always visible if next exists) */}
+        {/* Left: Previous Button (Swapped from Right) */}
         <div>
-          {!readOnly && hasNextQuestion && onNext && (
+          {!readOnly && hasPreviousQuestion && onPrevious && (
             <Button
-              onClick={onNext}
+              onClick={onPrevious}
               size="lg"
-              className={nextQuestionIsBidRound
-                ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 text-base animate-pulse"
-                : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3 text-base"
-              }
+              variant="outline"
+              className="bg-purple-700 hover:bg-purple-600 text-white font-bold px-8 py-3 text-base border-purple-500"
             >
-              {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}
+              ← Previous Question
             </Button>
           )}
         </div>
@@ -165,16 +163,18 @@ export default function HtmlCssChallenge({
           <p className="text-purple-200 text-lg">{question.points} points</p>
         </div>
 
-        {/* Right: Previous Button + Timer */}
+        {/* Right: Next Button + Timer (Next Swapped from Left) */}
         <div className="flex items-center gap-4">
-          {!readOnly && hasPreviousQuestion && onPrevious && (
+          {!readOnly && hasNextQuestion && onNext && (
             <Button
-              onClick={onPrevious}
+              onClick={onNext}
               size="lg"
-              variant="outline"
-              className="bg-purple-700 hover:bg-purple-600 text-white font-bold px-8 py-3 text-base border-purple-500"
+              className={nextQuestionIsBidRound
+                ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 text-base animate-pulse"
+                : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3 text-base"
+              }
             >
-              ← Previous Question
+              {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}
             </Button>
           )}
           {!readOnly && !isSubmitted && (

@@ -333,17 +333,24 @@ export default function QuestionsPage() {
     }
   };
 
+  // Fix for save: format options as structured objects with keys
   const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
 
+      // Construct structured options if needed
+      const structuredOptions = formData.options.map((text, index) => ({
+        key: String.fromCharCode(65 + index), // A, B, C, D...
+        text: text
+      }));
+
       const payload = {
         ...formData,
         timeLimit: formData.timeLimit === '' ? null : Number(formData.timeLimit),
-        // Ensure options are serialized as JSON string for backend
-        options: JSON.stringify(formData.options),
+        // Send structured options
+        options: JSON.stringify(structuredOptions),
         questionType: formData.questionType,
       };
 
@@ -465,7 +472,12 @@ export default function QuestionsPage() {
         const parsed = JSON.parse(question.options);
         if (Array.isArray(parsed)) {
           // Handle complex object options (bidding) or simple strings
-          parsedOptions = parsed.map((o: any) => typeof o === 'string' ? o : o.text).concat(['', '', '', '']).slice(0, 4);
+          // Extract text for the form inputs
+          const texts = parsed.map((o: any) => typeof o === 'string' ? o : o.text);
+          // Fill up to 4
+          for (let i = 0; i < 4; i++) {
+            parsedOptions[i] = texts[i] || '';
+          }
         }
       }
     } catch (e) { console.error("Error parsing options for edit", e); }
@@ -477,7 +489,8 @@ export default function QuestionsPage() {
       correctAnswer: question.correctAnswer || '',
       points: question.points,
       timeLimit: question.timeLimit || '',
-      questionType: (question.questionType === 'image_based' || question.questionType === 'multiple_choice') ? question.questionType : 'multiple_choice',
+      // Allow all valid types, default to multiple_choice if unknown
+      questionType: question.questionType || 'multiple_choice',
       options: parsedOptions,
     });
     setEditingId(question.id);

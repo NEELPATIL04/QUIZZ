@@ -189,7 +189,8 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
         eq(teamAnswers.questionId, questionId)
       ));
 
-    if (existingAnswer) {
+    // Allow re-submission for specific types (e.g. js_engine_challenge)
+    if (existingAnswer && question.questionType !== 'js_engine_challenge') {
       res.status(400).json({ error: 'This question has already been answered' });
       return;
     }
@@ -197,6 +198,7 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
     // Check if answer is correct
     let isCorrect = false;
     let pointsAwarded = 0;
+    let additionalData: any = {};
 
     if (question.questionType === 'git_challenge') {
       // For git challenge, answer is JSON array of commands
@@ -338,14 +340,78 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
         isCorrect = submitted === correct;
         pointsAwarded = isCorrect ? question.points : 0;
       }
+    } else if (question.questionType === 'js_engine_challenge') {
+      // For JS Engine challenge, score is calculated on frontend (0-100)
+      const parsed = typeof answer === 'string' ? JSON.parse(answer) : answer;
+      const scorePercentage = (parsed.score || 0) / 100;
+
+      pointsAwarded = Math.round(question.points * scorePercentage);
+      isCorrect = pointsAwarded === question.points;
+        } else if (question.questionType === 'match_following') {
+      try {
+        let submittedPairs = typeof answer === 'string' ? JSON.parse(answer) : answer;
+        if (!submittedPairs || typeof submittedPairs !== 'object') {
+           console.error('Invalid match answer:', answer);
+           submittedPairs = {};
+        }
+
+        const options = JSON.parse(question.options as string || '[]');
+        console.log('Match Logic:', { submittedPairs, optionsLen: options.length });
+
+        let correctCount = 0;
+        const totalCount = options.length;
+
+        options.forEach((termOpt: any) => {
+          const droppedId = submittedPairs[termOpt.id];
+          if (droppedId) {
+            const droppedItem = options.find((o: any) => o.id === droppedId);
+            if (droppedItem && droppedItem.matchId === termOpt.matchId) {
+              correctCount++;
+            }
+          }
+        });
+
+        const scorePercentage = totalCount > 0 ? (correctCount / totalCount) : 0;
+        pointsAwarded = Math.round(question.points * scorePercentage);
+        isCorrect = correctCount === totalCount;
+        
+        additionalData = { correctCount, totalCount };
+      } catch (error: any) {
+        console.error('Match Error:', error);
+        isCorrect = false;
+        pointsAwarded = 0;
+        additionalData = { correctCount: 0, totalCount: 0, error: error.message };
+      }
     } else {
-      // For text answer questions
-      isCorrect = answer.trim().toLowerCase() === question.correctAnswer?.trim().toLowerCase();
+      // Robust Grading (Text + Array Support)
+      isCorrect = false;
+      const cleanAnswer = answer ? String(answer).trim() : '';
+      const cleanCorrect = question.correctAnswer ? String(question.correctAnswer).trim() : '';
+
+      try {
+        if (cleanAnswer.startsWith('[') && cleanCorrect.startsWith('[')) {
+            const parsedAnswer = JSON.parse(cleanAnswer);
+            const parsedCorrect = JSON.parse(cleanCorrect);
+
+            if (Array.isArray(parsedAnswer) && Array.isArray(parsedCorrect)) {
+                 const sortedAnswer = [...parsedAnswer].sort().map(s => String(s).trim().toLowerCase());
+                 const sortedCorrect = [...parsedCorrect].sort().map(s => String(s).trim().toLowerCase());
+                 isCorrect = JSON.stringify(sortedAnswer) === JSON.stringify(sortedCorrect);
+            } else {
+                 isCorrect = cleanAnswer.toLowerCase() === cleanCorrect.toLowerCase();
+            }
+        } else {
+            isCorrect = cleanAnswer.toLowerCase() === cleanCorrect.toLowerCase();
+        }
+      } catch (e) {
+        isCorrect = cleanAnswer.toLowerCase() === cleanCorrect.toLowerCase();
+      }
+      
       pointsAwarded = isCorrect ? question.points : 0;
     }
 
     // For true_false_drag_drop, we need to also send correctCount and totalCount
-    let additionalData: any = {};
+
     if (question.questionType === 'true_false_drag_drop') {
       const userAnswer = typeof answer === 'string' ? JSON.parse(answer) : answer;
       const codeBlocks = question.initialTree ? JSON.parse(question.initialTree) : [];
@@ -376,22 +442,52 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
 
     // Save answer with timing information
     const now = new Date();
-    const [submittedAnswer] = await db.insert(teamAnswers).values({
-      teamId: team.id,
-      questionId,
-      answer: typeof answer === 'string' ? answer : JSON.stringify(answer),
-      isCorrect,
-      pointsAwarded,
-      timeStarted: timeStarted ? new Date(timeStarted) : null,
-      timeCompleted: now,
-      timeTaken: timeTaken || null,
-    }).returning();
+    let submittedAnswer;
 
-    // Update team score
-    await db
-      .update(teams)
-      .set({ score: team.score + pointsAwarded })
-      .where(eq(teams.id, team.id));
+    if (existingAnswer) {
+      if (pointsAwarded > (existingAnswer.pointsAwarded || 0)) {
+        const scoreDiff = pointsAwarded - (existingAnswer.pointsAwarded || 0);
+
+        [submittedAnswer] = await db
+          .update(teamAnswers)
+          .set({
+            answer: typeof answer === 'string' ? answer : JSON.stringify(answer),
+            isCorrect,
+            pointsAwarded,
+            timeCompleted: now,
+            timeTaken: timeTaken || null,
+          })
+          .where(eq(teamAnswers.id, existingAnswer.id))
+          .returning();
+
+        // Update team score with difference
+        await db
+          .update(teams)
+          .set({ score: team.score + scoreDiff })
+          .where(eq(teams.id, team.id));
+      } else {
+        // Keep existing answer if new score is not higher
+        submittedAnswer = existingAnswer;
+      }
+    } else {
+      // Insert new answer
+      [submittedAnswer] = await db.insert(teamAnswers).values({
+        teamId: team.id,
+        questionId,
+        answer: typeof answer === 'string' ? answer : JSON.stringify(answer),
+        isCorrect,
+        pointsAwarded,
+        timeStarted: timeStarted ? new Date(timeStarted) : null,
+        timeCompleted: now,
+        timeTaken: timeTaken || null,
+      }).returning();
+
+      // Update team score
+      await db
+        .update(teams)
+        .set({ score: team.score + pointsAwarded })
+        .where(eq(teams.id, team.id));
+    }
 
     res.json({
       message: 'Answer submitted successfully',

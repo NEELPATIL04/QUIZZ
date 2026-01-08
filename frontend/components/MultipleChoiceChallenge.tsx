@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -69,7 +69,14 @@ export default function MultipleChoiceChallenge({
         }
     };
     const [isSubmitted, setIsSubmitted] = useState(isSubmittedProp);
-    const [startTime] = useState(new Date());
+    const [startTime, setStartTime] = useState(new Date());
+
+    // Reset state when question changes
+    useEffect(() => {
+        setIsSubmitted(isSubmittedProp);
+        setSelectedOptions([]);
+        setStartTime(new Date());
+    }, [question.id, isSubmittedProp]);
 
     const handleSubmit = async () => {
         if (selectedOptions.length === 0) return;
@@ -93,18 +100,16 @@ export default function MultipleChoiceChallenge({
         <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-900 to-cyan-900 p-6">
             {/* Header with Navigation */}
             <div className="mb-6 flex items-center justify-between">
-                {/* Left: Next Question Button */}
-                <div>
-                    {hasNextQuestion && onNext && (
+                {/* Left: Previous Button (Swapped from Right) */}
+                <div className="flex items-center gap-2">
+                    {hasPreviousQuestion && onPrevious && (
                         <Button
-                            onClick={onNext}
+                            onClick={onPrevious}
                             size="lg"
-                            className={nextQuestionIsBidRound
-                                ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 text-base animate-pulse"
-                                : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3 text-base"
-                            }
+                            variant="outline"
+                            className="bg-slate-700 hover:bg-slate-600 text-white font-bold px-8 py-3 text-base border-slate-500"
                         >
-                            {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}
+                            ← Previous
                         </Button>
                     )}
                 </div>
@@ -120,16 +125,18 @@ export default function MultipleChoiceChallenge({
                     <p className="text-blue-200 text-lg">Select the correct output</p>
                 </div>
 
-                {/* Right: Previous Button */}
-                <div className="flex items-center gap-2">
-                    {hasPreviousQuestion && onPrevious && (
+                {/* Right: Next Question Button (Swapped from Left) */}
+                <div>
+                    {hasNextQuestion && onNext && (
                         <Button
-                            onClick={onPrevious}
+                            onClick={onNext}
                             size="lg"
-                            variant="outline"
-                            className="bg-slate-700 hover:bg-slate-600 text-white font-bold px-8 py-3 text-base border-slate-500"
+                            className={nextQuestionIsBidRound
+                                ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 text-base animate-pulse"
+                                : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3 text-base"
+                            }
                         >
-                            ← Previous
+                            {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}
                         </Button>
                     )}
                 </div>

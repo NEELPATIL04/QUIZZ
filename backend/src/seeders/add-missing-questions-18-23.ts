@@ -9,12 +9,12 @@ const missingQuestions = [
         title: 'CSS Specificity Wars',
         description: 'Which selector has the highest specificity?',
         options: JSON.stringify([
-            '#nav.active ul li a',
-            'html body div#container .content',
-            'a[href^="http"]:hover',
-            'div.menu > ul > li.item'
+            { key: 'A', text: '#nav.active ul li a' },
+            { key: 'B', text: 'html body div#container .content' },
+            { key: 'C', text: 'a[href^="http"]:hover' },
+            { key: 'D', text: 'div.menu > ul > li.item' }
         ]),
-        correctAnswer: '#nav.active ul li a',
+        correctAnswer: 'A',
         points: 20,
         isEnabled: true
     },
@@ -24,12 +24,12 @@ const missingQuestions = [
         title: 'Event Loop & Macrotasks',
         description: 'Which of the following creates a "Macro Task" in the JavaScript Event Loop?',
         options: JSON.stringify([
-            'Promise.resolve().then()',
-            'queueMicrotask()',
-            'setTimeout(fn, 0)',
-            'process.nextTick()'
+            { key: 'A', text: 'Promise.resolve().then()' },
+            { key: 'B', text: 'queueMicrotask()' },
+            { key: 'C', text: 'setTimeout(fn, 0)' },
+            { key: 'D', text: 'process.nextTick()' }
         ]),
-        correctAnswer: 'setTimeout(fn, 0)',
+        correctAnswer: 'C',
         points: 20,
         isEnabled: true
     },
@@ -39,12 +39,12 @@ const missingQuestions = [
         title: 'JS Hoisting',
         description: 'What will be logged? \n\n```javascript\nconsole.log(x);\nvar x = 5;\n```',
         options: JSON.stringify([
-            'ReferenceError: x is not defined',
-            'undefined',
-            '5',
-            'null'
+            { key: 'A', text: 'ReferenceError: x is not defined' },
+            { key: 'B', text: 'undefined' },
+            { key: 'C', text: '5' },
+            { key: 'D', text: 'null' }
         ]),
-        correctAnswer: 'undefined',
+        correctAnswer: 'B',
         points: 20,
         isEnabled: true
     },
@@ -54,12 +54,12 @@ const missingQuestions = [
         title: 'Closures & Scope',
         description: 'What does this function return?\n```javascript\nfunction outer() {\n  let count = 0;\n  return () => ++count;\n}\nconst c = outer();\nc();\nc();\nreturn c();\n```',
         options: JSON.stringify([
-            '1',
-            '2',
-            '3',
-            'undefined'
+            { key: 'A', text: '1' },
+            { key: 'B', text: '2' },
+            { key: 'C', text: '3' },
+            { key: 'D', text: 'undefined' }
         ]),
-        correctAnswer: '3',
+        correctAnswer: 'C',
         points: 20,
         isEnabled: true
     },
@@ -69,12 +69,12 @@ const missingQuestions = [
         title: 'Prototypes',
         description: 'In JavaScript models, what is the default prototype of a plain object created via literal syntax `{}`?',
         options: JSON.stringify([
-            'Object.prototype',
-            'Function.prototype',
-            'null',
-            'Array.prototype'
+            { key: 'A', text: 'Object.prototype' },
+            { key: 'B', text: 'Function.prototype' },
+            { key: 'C', text: 'null' },
+            { key: 'D', text: 'Array.prototype' }
         ]),
-        correctAnswer: 'Object.prototype',
+        correctAnswer: 'A',
         points: 50,
         isEnabled: true
     },
@@ -84,12 +84,12 @@ const missingQuestions = [
         title: 'This Keyword',
         description: 'What is the value of `this` in a strict mode function called normally?\n```javascript\n"use strict";\nfunction f() { return this; }\n```',
         options: JSON.stringify([
-            'window / global',
-            'undefined',
-            'null',
-            'The function itself'
+            { key: 'A', text: 'window / global' },
+            { key: 'B', text: 'undefined' },
+            { key: 'C', text: 'null' },
+            { key: 'D', text: 'The function itself' }
         ]),
-        correctAnswer: 'undefined',
+        correctAnswer: 'B',
         points: 50,
         isEnabled: true
     }

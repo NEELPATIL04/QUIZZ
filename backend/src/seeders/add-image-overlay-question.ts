@@ -74,11 +74,11 @@ You must write CSS for the following classes:
   z-index: 3;
 }
   `,
-  requiredProperties: JSON.stringify(['position', 'top', 'left', 'z-index']),
+  requiredProperties: JSON.stringify(['position', 'top', 'left']),
   scoringCriteria: JSON.stringify({
-    idealMethod: { properties: ['position', 'top', 'left', 'z-index'], points: 100 },
+    idealMethod: { properties: ['position', 'top', 'left'], points: 100 },
     alternativeMethod: { properties: ['margin'], pointsDeduction: 50 },
-    optionalProperties: ['transform']
+    optionalProperties: ['transform', 'z-index']
   }),
   points: 100,
   isEnabled: true,

@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { db } from '../db';
 import { quizConfig, teams, questions, teamMembers, teamAnswers, mcqBids, mcqTimerState } from '../db/schema';
-import { eq, sql, and } from 'drizzle-orm';
+import { eq, sql, and, desc } from 'drizzle-orm';
 import { AuthRequest } from '../middlewares/auth.middleware';
 
 // Get quiz configuration
@@ -244,17 +244,43 @@ export const getAllQuestions = async (req: AuthRequest, res: Response): Promise<
 // Create question
 export const createQuestion = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { questionNumber, title, description, options, correctAnswer, points, timeLimit } = req.body;
+    let { questionNumber, title, description, options, correctAnswer, points, timeLimit, questionType } = req.body;
+
+    if (!title) {
+      res.status(400).json({ error: 'Title is required' });
+      return;
+    }
+
+    // Auto-assign question number if missing or check for conflict
+    if (!questionNumber) {
+      const [lastQ] = await db.select().from(questions).orderBy(desc(questions.questionNumber)).limit(1);
+      questionNumber = (lastQ?.questionNumber || 0) + 1;
+    } else {
+      // Check if exists
+      const [existing] = await db.select().from(questions).where(eq(questions.questionNumber, questionNumber));
+      if (existing) {
+        // If duplicate, auto-increment instead of failing
+        const [lastQ] = await db.select().from(questions).orderBy(desc(questions.questionNumber)).limit(1);
+        questionNumber = (lastQ?.questionNumber || 0) + 1;
+      }
+    }
+
+    // Handle options: Ensure it's stored as a JSON string
+    let optionsString: string | null = null;
+    if (options) {
+      optionsString = typeof options === 'string' ? options : JSON.stringify(options);
+    }
 
     const [newQuestion] = await db.insert(questions).values({
       questionNumber,
       title,
       description,
-      options: JSON.stringify(options),
+      options: optionsString,
       correctAnswer,
       points: points || 10,
       isEnabled: false,
       timeLimit: timeLimit || null,
+      questionType: questionType || 'text_answer'
     }).returning();
 
     res.status(201).json({ message: 'Question created', question: newQuestion });

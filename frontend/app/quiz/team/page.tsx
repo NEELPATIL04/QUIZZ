@@ -185,18 +185,18 @@ export default function TeamQuizPage() {
 
         // Same question - check if anything actually changed
         if (prevState &&
-            prevState.bidRoundEnabled === newTimerState.bidRoundEnabled &&
-            prevState.isRunning === newTimerState.isRunning &&
-            prevState.timeRemaining === newTimerState.timeRemaining &&
-            prevState.biddingClosed === newTimerState.biddingClosed &&
-            prevState.answerRevealed === newTimerState.answerRevealed) {
+          prevState.bidRoundEnabled === newTimerState.bidRoundEnabled &&
+          prevState.isRunning === newTimerState.isRunning &&
+          prevState.timeRemaining === newTimerState.timeRemaining &&
+          prevState.biddingClosed === newTimerState.biddingClosed &&
+          prevState.answerRevealed === newTimerState.answerRevealed) {
           // Nothing changed, return previous state to prevent re-render
           return prevState;
         }
 
         // Check if bid round was disabled while we're in a bid round question
         if (prevState && prevState.questionId === questionId &&
-            prevState.bidRoundEnabled && newTimerState && !newTimerState.bidRoundEnabled) {
+          prevState.bidRoundEnabled && newTimerState && !newTimerState.bidRoundEnabled) {
           // Bid round was just disabled - save the current question as last active using ref
           setBidRoundState(prevBidState => {
             if (prevBidState.hasEnteredBidRound) {
@@ -606,7 +606,7 @@ export default function TeamQuizPage() {
       ) : currentQuestion.questionType === 'html_css_challenge' ? (
         <HtmlCssChallenge question={currentQuestion} {...commonProps} />
       ) : currentQuestion.questionType === 'js_engine_challenge' ? (
-        <JsEngineChallenge question={currentQuestion} {...commonProps} />
+        <JsEngineChallenge question={currentQuestion} {...commonProps} teamScore={teamScore} />
       ) : currentQuestion.questionType === 'mcq_bidding' ? (
         <McqBiddingChallenge question={currentQuestion} {...commonProps} teamScore={teamScore} mcqTimerState={mcqTimerState} />
       ) : currentQuestion.questionType === 'broken_html_challenge' ? (
@@ -616,7 +616,19 @@ export default function TeamQuizPage() {
       ) : currentQuestion.questionType === 'match_following' ? (
         <MatchFollowingChallenge question={currentQuestion} {...commonProps} />
       ) : (
-        <MultipleChoiceChallenge question={currentQuestion} {...commonProps} />
+        <MultipleChoiceChallenge
+          question={currentQuestion}
+          {...commonProps}
+          isMultiSelect={(() => {
+            try {
+              if (!currentQuestion.correctAnswer) return false;
+              const parsed = JSON.parse(currentQuestion.correctAnswer);
+              return Array.isArray(parsed) && parsed.length > 1;
+            } catch (e) {
+              return false;
+            }
+          })()}
+        />
       )}
     </>
   );
