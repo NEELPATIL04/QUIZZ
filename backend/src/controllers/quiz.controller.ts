@@ -124,15 +124,20 @@ export const toggleBidResults = async (req: AuthRequest, res: Response): Promise
 // Initialize teams based on config
 export const initializeTeams = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    console.log('[initializeTeams] Starting team initialization...');
     const [config] = await db.select().from(quizConfig).limit(1);
 
     if (!config) {
+      console.log('[initializeTeams] ERROR: No config found');
       res.status(400).json({ error: 'Quiz config not found' });
       return;
     }
 
+    console.log(`[initializeTeams] Config found: ${config.numberOfTeams} teams, ${config.teamSize} members each`);
+
     // Get existing teams
     const existingTeams = await db.select().from(teams);
+    console.log(`[initializeTeams] Found ${existingTeams.length} existing teams`);
     const existingTeamNumbers = new Set(existingTeams.map(t => t.teamNumber));
     const targetTeamCount = config.numberOfTeams;
 
@@ -161,6 +166,7 @@ export const initializeTeams = async (req: AuthRequest, res: Response): Promise<
 
     // Execute Deletions
     if (teamsToDeleteIds.length > 0) {
+      console.log(`[initializeTeams] Deleting ${teamsToDeleteIds.length} teams...`);
       for (const id of teamsToDeleteIds) {
         await db.delete(teams).where(eq(teams.id, id));
       }
@@ -170,45 +176,102 @@ export const initializeTeams = async (req: AuthRequest, res: Response): Promise<
 
     // Execute Creations
     if (teamsToCreate.length > 0) {
-      const newTeams = await db.insert(teams).values(teamsToCreate).returning();
+      console.log(`[initializeTeams] Creating ${teamsToCreate.length} new teams:`, teamsToCreate.map(t => t.teamNumber));
+      try {
+        const newTeams = await db.insert(teams).values(teamsToCreate).returning();
+        console.log(`[initializeTeams] Successfully created ${newTeams.length} teams`);
 
-      // Create members for new teams
-      for (const team of newTeams) {
-        const membersToCreate = [];
-        // Add controllers
-        for (let i = 1; i <= config.controllersPerTeam; i++) {
-          membersToCreate.push({
-            teamId: team.id,
-            memberNumber: membersToCreate.length + 1,
-            role: 'controller' as const,
-          });
+        // Create members for new teams
+        for (const team of newTeams) {
+          const membersToCreate = [];
+          // Add controllers
+          for (let i = 1; i <= config.controllersPerTeam; i++) {
+            membersToCreate.push({
+              teamId: team.id,
+              memberNumber: membersToCreate.length + 1,
+              role: 'controller' as const,
+            });
+          }
+          // Add viewers
+          const remainingSlots = config.teamSize - config.controllersPerTeam;
+          for (let i = 1; i <= remainingSlots; i++) {
+            membersToCreate.push({
+              teamId: team.id,
+              memberNumber: membersToCreate.length + 1,
+              role: 'viewer' as const,
+            });
+          }
+          if (membersToCreate.length > 0) {
+            await db.insert(teamMembers).values(membersToCreate);
+          }
         }
-        // Add viewers
-        const remainingSlots = config.teamSize - config.controllersPerTeam;
-        for (let i = 1; i <= remainingSlots; i++) {
-          membersToCreate.push({
-            teamId: team.id,
-            memberNumber: membersToCreate.length + 1,
-            role: 'viewer' as const,
-          });
-        }
-        if (membersToCreate.length > 0) {
-          await db.insert(teamMembers).values(membersToCreate);
+        finalTeams = [...finalTeams, ...newTeams];
+      } catch (insertError: any) {
+        // Check if it's a unique constraint violation
+        if (insertError?.code === '23505' || insertError?.message?.includes('duplicate key') || insertError?.message?.includes('unique constraint')) {
+          console.error('Unique constraint violation during team creation. Attempting individual inserts...');
+
+          // Try inserting teams one by one, skipping duplicates
+          const successfulTeams = [];
+          for (const teamData of teamsToCreate) {
+            try {
+              const [newTeam] = await db.insert(teams).values(teamData).returning();
+
+              // Create members for this team
+              const membersToCreate = [];
+              for (let i = 1; i <= config.controllersPerTeam; i++) {
+                membersToCreate.push({
+                  teamId: newTeam.id,
+                  memberNumber: membersToCreate.length + 1,
+                  role: 'controller' as const,
+                });
+              }
+              const remainingSlots = config.teamSize - config.controllersPerTeam;
+              for (let i = 1; i <= remainingSlots; i++) {
+                membersToCreate.push({
+                  teamId: newTeam.id,
+                  memberNumber: membersToCreate.length + 1,
+                  role: 'viewer' as const,
+                });
+              }
+              if (membersToCreate.length > 0) {
+                await db.insert(teamMembers).values(membersToCreate);
+              }
+
+              successfulTeams.push(newTeam);
+            } catch (individualError: any) {
+              console.error(`Failed to insert team ${teamData.teamNumber}:`, individualError.message);
+              // Skip this team if it already exists
+            }
+          }
+          finalTeams = [...finalTeams, ...successfulTeams];
+        } else {
+          // Re-throw if it's a different error
+          throw insertError;
         }
       }
-      finalTeams = [...finalTeams, ...newTeams];
     }
 
     // Sort final teams by number
     finalTeams.sort((a, b) => a.teamNumber - b.teamNumber);
+    console.log(`[initializeTeams] SUCCESS: Returning ${finalTeams.length} teams`);
 
     res.json({
       message: `Teams initialized. Added: ${teamsToCreate.length}, Removed: ${teamsToDeleteIds.length}`,
       teams: finalTeams
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Initialize teams error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      detail: error?.detail,
+      stack: error?.stack
+    });
+    res.status(500).json({
+      error: 'Internal server error',
+      details: error?.message || 'Unknown error'
+    });
   }
 };
 
