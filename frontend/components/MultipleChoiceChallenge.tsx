@@ -106,46 +106,56 @@ export default function MultipleChoiceChallenge({
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-900 to-cyan-900 p-6">
             {/* Header with Navigation */}
-            <div className="mb-6 flex items-center justify-between">
-                {/* Left: Previous Button (Swapped from Right) - Fixed Width */}
-                <div className="w-64 flex justify-start">
-                    {hasPreviousQuestion && onPrevious && (
-                        <Button
-                            onClick={onPrevious}
-                            size="lg"
-                            variant="outline"
-                            className="bg-slate-700 hover:bg-slate-600 text-white font-bold px-8 py-3 text-base border-slate-500"
-                        >
-                            ← Previous
-                        </Button>
-                    )}
+            <div className="mb-6 flex flex-col gap-4">
+                {/* Top Row: Navigation Buttons */}
+                <div className="flex items-center justify-between w-full">
+                    {/* Left: Previous Button - Fixed Width */}
+                    <div className="flex justify-start">
+                        {hasPreviousQuestion && onPrevious && (
+                            <Button
+                                onClick={onPrevious}
+                                size="sm"
+                                variant="outline"
+                                className="bg-slate-700/80 hover:bg-slate-600 text-white font-semibold px-4 py-2 text-sm border-slate-500"
+                            >
+                                ← Previous
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* Right: Next Question Button */}
+                    <div className="flex justify-end">
+                        {hasNextQuestion && onNext && (
+                            <Button
+                                onClick={onNext}
+                                size="sm"
+                                className={nextQuestionIsBidRound
+                                    ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-4 py-2 text-sm animate-pulse"
+                                    : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-4 py-2 text-sm"
+                                }
+                            >
+                                {nextQuestionIsBidRound ? "Bid Round →" : "Next →"}
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
-                {/* Center: Title */}
-                <div className="flex-1 text-center">
-                    <Badge variant="outline" className="mb-2 text-white border-white/20">
-                        Question {question.questionNumber}
-                    </Badge>
-                    <h1 className="text-3xl font-bold text-white mb-2">
+                {/* Bottom Row: Title (Centered) */}
+                <div className="text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                        <Badge variant="outline" className="text-white border-white/20">
+                            Question {question.questionNumber}
+                        </Badge>
+                        {isMultiSelect && (
+                            <Badge variant="secondary" className="bg-purple-500 text-white border-none">
+                                Multi-Select
+                            </Badge>
+                        )}
+                    </div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">
                         {question.title}
                     </h1>
-                    <p className="text-blue-200 text-lg">Select the correct output</p>
-                </div>
-
-                {/* Right: Next Question Button (Swapped from Left) - Fixed Width */}
-                <div className="w-64 flex justify-end">
-                    {hasNextQuestion && onNext && (
-                        <Button
-                            onClick={onNext}
-                            size="lg"
-                            className={nextQuestionIsBidRound
-                                ? "bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 text-white font-bold px-8 py-3 text-base animate-pulse"
-                                : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3 text-base"
-                            }
-                        >
-                            {nextQuestionIsBidRound ? "🎯 Enter Bid Round →" : "Next Question →"}
-                        </Button>
-                    )}
+                    <p className="text-blue-200 text-base">Select the correct output</p>
                 </div>
             </div>
 
