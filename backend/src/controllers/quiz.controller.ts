@@ -365,19 +365,44 @@ export const createQuestion = async (req: AuthRequest, res: Response): Promise<v
 export const updateQuestion = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { questionNumber, title, description, options, correctAnswer, points, timeLimit } = req.body;
+    const {
+      questionNumber, title, description, options, correctAnswer, points, timeLimit,
+      questionType, story, availableCommands, initialTree, treeStructure, correctTree,
+      hints, providedHtml, providedCss, targetSelector, idealCss, requiredProperties,
+      scoringCriteria, isEnabled, isFlagged
+    } = req.body;
+
+    console.log(`[updateQuestion] Updating Q:${id}`);
+    console.log(`[updateQuestion] Payload options type: ${typeof options}`);
+    if (typeof options === 'string') {
+      console.log(`[updateQuestion] Payload options (string): ${options.substring(0, 50)}...`);
+    } else if (Array.isArray(options)) {
+      console.log(`[updateQuestion] Payload options (array): length ${options.length}`);
+    }
 
     // Handle options - check if already stringified to prevent double-encoding
     let optionsString: string | undefined = undefined;
     if (options) {
       if (typeof options === 'string') {
-        // Already a string, use as-is
-        optionsString = options;
+        // Check if it's double stringified
+        try {
+          const parsed = JSON.parse(options);
+          if (typeof parsed === 'string') {
+            optionsString = parsed; // It was double stringified, now single
+          } else {
+            optionsString = options; // It was single stringified
+          }
+        } catch (e) {
+          optionsString = options; // Valid string but not JSON (rare but possible?)
+        }
       } else {
         // It's an object/array, stringify it
         optionsString = JSON.stringify(options);
       }
     }
+
+    // Helper for JSON fields
+    const safeStringify = (val: any) => typeof val === 'object' ? JSON.stringify(val) : val;
 
     const [updated] = await db
       .update(questions)
@@ -389,6 +414,21 @@ export const updateQuestion = async (req: AuthRequest, res: Response): Promise<v
         correctAnswer,
         points,
         timeLimit: timeLimit || null,
+        questionType,
+        story,
+        availableCommands: safeStringify(availableCommands),
+        initialTree: safeStringify(initialTree),
+        treeStructure: safeStringify(treeStructure),
+        correctTree: safeStringify(correctTree),
+        hints: safeStringify(hints),
+        providedHtml,
+        providedCss,
+        targetSelector,
+        idealCss,
+        requiredProperties: safeStringify(requiredProperties),
+        scoringCriteria: safeStringify(scoringCriteria),
+        isEnabled,
+        isFlagged
       })
       .where(eq(questions.id, id))
       .returning();
