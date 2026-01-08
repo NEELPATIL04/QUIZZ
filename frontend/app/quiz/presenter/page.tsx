@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { Presentation, Lock, Eye, EyeOff } from 'lucide-react';
@@ -16,29 +16,78 @@ export default function PresenterPage() {
   const [showBidResults, setShowBidResults] = useState(false);
   const [bidResults, setBidResults] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const scrollPositionRef = useRef(0);
+  const isRestoringScrollRef = useRef(false);
 
   useEffect(() => {
     fetchCurrentQuestion();
     fetchQuizConfig();
+
+    // Save scroll position before each poll
+    const handleScroll = () => {
+      scrollPositionRef.current = window.scrollY;
+    };
+    window.addEventListener('scroll', handleScroll);
 
     // Poll for current question and config every 3 seconds
     const interval = setInterval(() => {
       fetchCurrentQuestion();
       fetchQuizConfig();
     }, 3000);
-    return () => clearInterval(interval);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   const fetchCurrentQuestion = async () => {
     try {
       const data = await api.getCurrentQuestion();
-      setCurrentQuestion(data);
+      setCurrentQuestion((prevQuestion: any) => {
+        // Only restore scroll if question hasn't changed
+        if (prevQuestion?.id === data?.id) {
+          // Lock scroll restoration flag
+          isRestoringScrollRef.current = true;
+
+          // Use multiple methods to ensure scroll position is maintained
+          const savedScroll = scrollPositionRef.current;
+
+          // Immediate restoration
+          window.scrollTo(0, savedScroll);
+
+          // Delayed restoration to override any browser auto-scroll
+          requestAnimationFrame(() => {
+            window.scrollTo(0, savedScroll);
+
+            // Final restoration after render
+            setTimeout(() => {
+              window.scrollTo(0, savedScroll);
+              isRestoringScrollRef.current = false;
+            }, 50);
+          });
+        }
+        return data;
+      });
     } catch (error) {
       console.error('Error fetching current question:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Prevent any scroll attempts during updates
+  useEffect(() => {
+    const preventAutoScroll = (e: Event) => {
+      if (isRestoringScrollRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    window.addEventListener('scroll', preventAutoScroll, { passive: false, capture: true });
+    return () => window.removeEventListener('scroll', preventAutoScroll, { capture: true });
+  }, []);
 
   const fetchQuizConfig = async () => {
     try {
@@ -173,7 +222,40 @@ export default function PresenterPage() {
                     </CardTitle>
                     {currentQuestion.description && (
                       <CardDescription className="text-blue-100 text-2xl mt-4">
-                        {currentQuestion.description}
+                        {(() => {
+                          const desc = currentQuestion.description;
+                          // Check if description contains code blocks (```)
+                          if (desc.includes('```')) {
+                            const parts = desc.split(/(```[\s\S]*?```)/g);
+                            return (
+                              <div className="space-y-4">
+                                {parts.map((part: string, idx: number) => {
+                                  if (part.startsWith('```')) {
+                                    // Extract language and code
+                                    const match = part.match(/```(\w*)\n([\s\S]*?)```/);
+                                    if (match) {
+                                      const [, language, code] = match;
+                                      return (
+                                        <div key={idx} className="bg-slate-900 rounded-lg p-4 border-2 border-blue-400">
+                                          {language && (
+                                            <div className="text-sm text-blue-300 mb-2 font-mono">{language}</div>
+                                          )}
+                                          <pre className="text-lg font-mono text-green-300 overflow-x-auto">
+                                            <code>{code.trim()}</code>
+                                          </pre>
+                                        </div>
+                                      );
+                                    }
+                                  }
+                                  // Regular text
+                                  return part.trim() ? <div key={idx}>{part.trim()}</div> : null;
+                                })}
+                              </div>
+                            );
+                          }
+                          // No code blocks, render as normal
+                          return <div className="whitespace-pre-wrap">{desc}</div>;
+                        })()}
                       </CardDescription>
                     )}
                   </div>
@@ -250,6 +332,220 @@ export default function PresenterPage() {
                             </div>
                           ))}
                       </div>
+                    </div>
+                  ) : currentQuestion.questionType === 'html_css_challenge' ? (
+                    <div>
+                      <h4 className="text-2xl font-bold mb-4">Ideal CSS Solution:</h4>
+                      <div className="bg-slate-900 rounded-lg p-6 border-2 border-white/30">
+                        <pre className="text-lg font-mono text-green-300 overflow-x-auto whitespace-pre-wrap">
+                          <code>{currentQuestion.idealCss || currentQuestion.correctAnswer || 'No solution available'}</code>
+                        </pre>
+                      </div>
+                      {currentQuestion.targetSelector && (
+                        <div className="mt-4 bg-white/20 backdrop-blur-sm rounded-lg p-4 border-2 border-white/30">
+                          <p className="text-xl">
+                            <span className="font-bold">Target Selector:</span>{' '}
+                            <code className="text-yellow-300 font-mono">{currentQuestion.targetSelector}</code>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : currentQuestion.questionType === 'js_engine_challenge' ? (
+                    <div>
+                      {(() => {
+                        try {
+                          const solution = JSON.parse(currentQuestion.correctAnswer || '{}');
+                          const placements = solution.expectedPlacements || {};
+                          const output = solution.expectedOutput || [];
+
+                          return (
+                            <div className="space-y-6">
+                              <div>
+                                <h4 className="text-2xl font-bold mb-4">Expected Code Placements:</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {Object.entries(placements).map(([blockId, placement]: [string, any]) => (
+                                    <div key={blockId} className="bg-white/20 backdrop-blur-sm rounded-lg p-4 border-2 border-white/30">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-lg font-bold">Block {blockId}</span>
+                                        <span className={`px-3 py-1 rounded-full text-sm font-bold ${placement === 'executed' ? 'bg-blue-500' :
+                                          placement === 'microtask' ? 'bg-purple-500' :
+                                            placement === 'macrotask' ? 'bg-orange-500' :
+                                              'bg-gray-500'
+                                          }`}>
+                                          {placement === 'executed' ? '⚡ Executed' :
+                                            placement === 'microtask' ? '🔮 Microtask Queue' :
+                                              placement === 'macrotask' ? '⏰ Macrotask Queue' :
+                                                placement}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {output.length > 0 && (
+                                <div>
+                                  <h4 className="text-2xl font-bold mb-4">Expected Console Output:</h4>
+                                  <div className="bg-slate-900 rounded-lg p-6 border-2 border-white/30">
+                                    <div className="space-y-2">
+                                      {output.map((line: string, idx: number) => (
+                                        <div key={idx} className="flex items-center gap-3">
+                                          <span className="text-green-400 font-bold">{idx + 1}.</span>
+                                          <code className="text-lg font-mono text-green-300">{line}</code>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        } catch (e) {
+                          return (
+                            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-8 border-2 border-white/30">
+                              <p className="text-xl font-mono text-center">
+                                {currentQuestion.correctAnswer}
+                              </p>
+                            </div>
+                          );
+                        }
+                      })()}
+                    </div>
+                  ) : currentQuestion.questionType === 'multiple_choice' ? (
+                    <div>
+                      {(() => {
+                        try {
+                          const options = JSON.parse(currentQuestion.options || '[]');
+                          let correctAnswers: string[] = [];
+
+                          try {
+                            const parsed = JSON.parse(currentQuestion.correctAnswer);
+                            correctAnswers = Array.isArray(parsed) ? parsed : [parsed];
+                          } catch {
+                            correctAnswers = [currentQuestion.correctAnswer];
+                          }
+
+                          return (
+                            <div>
+                              <h4 className="text-2xl font-bold mb-4">Correct Answer{correctAnswers.length > 1 ? 's' : ''}:</h4>
+                              <div className="space-y-3">
+                                {options.map((option: any) => {
+                                  const isCorrect = correctAnswers.includes(option.key);
+                                  if (!isCorrect) return null;
+
+                                  return (
+                                    <div key={option.key} className="bg-green-600 rounded-lg p-6 border-2 border-green-400">
+                                      <div className="flex items-start gap-4">
+                                        <span className="text-4xl font-bold text-white">{option.key}.</span>
+                                        <p className="text-2xl text-white flex-1">{option.text}</p>
+                                        <span className="text-3xl">✓</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        } catch (e) {
+                          return (
+                            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-8 border-2 border-white/30">
+                              <p className="text-3xl font-mono font-bold text-center">
+                                {currentQuestion.correctAnswer}
+                              </p>
+                            </div>
+                          );
+                        }
+                      })()}
+                    </div>
+                  ) : currentQuestion.questionType === 'broken_html_challenge' ? (
+                    <div>
+                      <h4 className="text-2xl font-bold mb-4">Correct HTML Tree Structure:</h4>
+                      <div className="bg-slate-900 rounded-lg p-6 border-2 border-white/30">
+                        <pre className="text-sm font-mono text-green-300 overflow-x-auto whitespace-pre-wrap">
+                          <code>{JSON.stringify(JSON.parse(currentQuestion.correctTree || '{}'), null, 2)}</code>
+                        </pre>
+                      </div>
+                      {currentQuestion.story && (
+                        <div className="mt-4">
+                          <h4 className="text-xl font-bold mb-3">Original HTML:</h4>
+                          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 border-2 border-white/30">
+                            <pre className="text-sm font-mono text-blue-200 overflow-x-auto whitespace-pre-wrap">
+                              <code>{currentQuestion.story}</code>
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : currentQuestion.questionType === 'true_false_drag_drop' ? (
+                    <div>
+                      {(() => {
+                        try {
+                          const blocks = JSON.parse(currentQuestion.initialTree || '[]');
+                          return (
+                            <div>
+                              <h4 className="text-2xl font-bold mb-4">Correct Answers:</h4>
+                              <div className="space-y-4">
+                                {blocks.map((block: any, idx: number) => (
+                                  <div key={block.id} className={`rounded-lg p-4 border-2 ${block.correctAnswer ? 'bg-green-600/20 border-green-400' : 'bg-red-600/20 border-red-400'
+                                    }`}>
+                                    <div className="flex items-center justify-between mb-3">
+                                      <span className="text-xl font-bold">Block {idx + 1}</span>
+                                      <span className={`px-4 py-2 rounded-full text-lg font-bold ${block.correctAnswer ? 'bg-green-500' : 'bg-red-500'
+                                        }`}>
+                                        {block.correctAnswer ? '✓ TRUE' : '✗ FALSE'}
+                                      </span>
+                                    </div>
+                                    <pre className="text-sm font-mono text-white bg-slate-900 p-3 rounded overflow-x-auto">
+                                      <code>{block.code}</code>
+                                    </pre>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        } catch (e) {
+                          return (
+                            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-8 border-2 border-white/30">
+                              <p className="text-xl font-mono text-center">{currentQuestion.correctAnswer}</p>
+                            </div>
+                          );
+                        }
+                      })()}
+                    </div>
+                  ) : currentQuestion.questionType === 'match_following' ? (
+                    <div>
+                      {(() => {
+                        try {
+                          const options = JSON.parse(currentQuestion.options || '[]');
+                          return (
+                            <div>
+                              <h4 className="text-2xl font-bold mb-4">Correct Matches:</h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {options.map((option: any) => (
+                                  <div key={option.id} className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg p-5 border-2 border-purple-400">
+                                    <div className="space-y-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-2xl font-bold">{option.id}.</span>
+                                        <span className="text-xl font-semibold">{option.term}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 pl-8">
+                                        <span className="text-yellow-300 text-xl">→</span>
+                                        <span className="text-lg text-blue-100">{option.definition}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        } catch (e) {
+                          return (
+                            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-8 border-2 border-white/30">
+                              <p className="text-xl font-mono text-center">{currentQuestion.correctAnswer}</p>
+                            </div>
+                          );
+                        }
+                      })()}
                     </div>
                   ) : (
                     <div className="bg-white/20 backdrop-blur-sm rounded-lg p-8 border-2 border-white/30">

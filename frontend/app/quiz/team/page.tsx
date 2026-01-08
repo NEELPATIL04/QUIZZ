@@ -267,9 +267,9 @@ export default function TeamQuizPage() {
       // Empty string
       if (value.trim() === '') return fallback;
 
-      // Check if it looks like JSON (starts with [ or {)
+      // Check if it looks like JSON (starts with [ or { or ")
       const trimmed = value.trim();
-      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      if (trimmed.startsWith('[') || trimmed.startsWith('{') || trimmed.startsWith('"')) {
         try {
           const parsed = JSON.parse(value);
           // Handle double-encoded JSON (common issue)
@@ -340,7 +340,8 @@ export default function TeamQuizPage() {
             requiredProperties: safeJsonParse(q.requiredProperties, []),
             availableCommands: safeJsonParse(q.availableCommands, []),
             completedCommands: safeJsonParse(q.completedCommands, []),
-            correctAnswer: safeJsonParse(q.correctAnswer, []),
+            // Keep correctAnswer as string for multi-select detection to work
+            correctAnswer: q.correctAnswer,
             availableBlocks: safeJsonParse(q.initialTree, []),
             codeBlocks: q.questionType === 'true_false_drag_drop' ? safeJsonParse(q.initialTree, []) : safeJsonParse(q.codeBlocks, []),
             originalHtml: q.story || '',

@@ -85,16 +85,11 @@ export default function MultipleChoiceChallenge({
         const timeTaken = Math.floor((new Date().getTime() - startTime.getTime()) / 1000);
 
         try {
-            // Convert selected keys to option texts (values)
-            // For multi-select, send array of texts. For single-select, send single text.
-            const selectedTexts = selectedOptions.map(key => {
-                const option = question.options.find(opt => opt.key === key);
-                return option?.text || key;
-            });
-
+            // Send keys directly (A, B, C, D) instead of option texts
+            // This matches how correctAnswer is stored in the database
             const answerPayload = isMultiSelect
-                ? JSON.stringify(selectedTexts)
-                : selectedTexts[0];
+                ? JSON.stringify(selectedOptions)
+                : selectedOptions[0];
 
             await onSubmit(answerPayload, timeTaken, startTime);
             setIsSubmitted(true);

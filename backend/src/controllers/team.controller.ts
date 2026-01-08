@@ -289,63 +289,115 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
 
       console.log(`True/False validation: ${correctCount}/${totalCount} correct, awarded ${pointsAwarded}/${question.points} points`);
     } else if (question.questionType === 'multiple_choice') {
-      // Check if correct answer is a JSON array (multi-select)
-      let correctOptions: string[] = [];
+      // Robust MCQ validation with smart key resolution
+      // Handles both key-based (A, B, C) and text-based answers for backward compatibility
+      const cleanAnswer = answer ? String(answer).trim() : '';
+      const cleanCorrect = question.correctAnswer ? String(question.correctAnswer).trim() : '';
+
+      console.log(`[submitAnswer] MCQ Validation for Q:${question.id}`);
+      console.log(`[submitAnswer] User answer: "${cleanAnswer}"`);
+      console.log(`[submitAnswer] Correct answer: "${cleanCorrect}"`);
+
+      // Parse options from database
+      let options: any[] = [];
       try {
-        const parsed = JSON.parse(question.correctAnswer || '[]');
-        if (Array.isArray(parsed)) {
-          correctOptions = parsed.map(o => o.trim().toUpperCase());
-        } else {
-          correctOptions = [question.correctAnswer?.trim().toUpperCase() || ''];
+        if (question.options) {
+          if (typeof question.options === 'string') {
+            const firstParse = JSON.parse(question.options);
+            if (typeof firstParse === 'string') {
+              options = JSON.parse(firstParse);
+            } else {
+              options = firstParse;
+            }
+          } else {
+            options = question.options as any;
+          }
         }
       } catch (e) {
-        // Fallback for simple string answer
-        correctOptions = [question.correctAnswer?.trim().toUpperCase() || ''];
+        console.error(`[submitAnswer] Failed to parse options for Q:${question.id}`, e);
       }
 
-      // Check submitted answer
-      let submittedOptions: string[] = [];
-      try {
-        const parsed = JSON.parse(answer);
-        if (Array.isArray(parsed)) {
-          submittedOptions = parsed.map((o: string) => o.trim().toUpperCase());
-        } else {
-          submittedOptions = [answer.trim().toUpperCase()];
+      console.log(`[submitAnswer] Parsed ${options.length} options`);
+
+      // Helper to resolve any value (Key or Text) to its Canonical Key (A, B, C...)
+      const resolveToKeys = (val: string): string[] => {
+        if (!val) return [];
+
+        let parsed: any;
+        try {
+          parsed = JSON.parse(val);
+        } catch (e) {
+          parsed = val;
         }
-      } catch (e) {
-        submittedOptions = [answer.trim().toUpperCase()];
-      }
 
-      if (correctOptions.length > 1) {
-        // Multi-select logic
-        // 1. Check if any WRONG option is selected -> 0 points
-        const hasWrongSelection = submittedOptions.some(opt => !correctOptions.includes(opt));
+        const values = Array.isArray(parsed) ? parsed : [parsed];
+
+        return values.map((v: any) => {
+          const s = String(v).trim();
+
+          // 1. Check if it matches a Key directly (case-insensitive)
+          const matchedByKey = options.find((o: any) => o.key && o.key.toLowerCase() === s.toLowerCase());
+          if (matchedByKey) {
+            console.log(`[submitAnswer] Resolved "${s}" to key "${matchedByKey.key}" (matched by key)`);
+            return matchedByKey.key.toUpperCase();
+          }
+
+          // 2. Check if it matches Option Text (case-insensitive)
+          const matchedByText = options.find((o: any) => o.text && o.text.trim().toLowerCase() === s.toLowerCase());
+          if (matchedByText) {
+            console.log(`[submitAnswer] Resolved "${s}" to key "${matchedByText.key}" (matched by text)`);
+            return matchedByText.key.toUpperCase();
+          }
+
+          // 3. Fallback: return as-is if it looks like a key (A-Z)
+          if (/^[A-Z]$/i.test(s)) {
+            console.log(`[submitAnswer] Using "${s}" as key (single letter)`);
+            return s.toUpperCase();
+          }
+
+          console.log(`[submitAnswer] Could not resolve "${s}" to a key`);
+          return s.toUpperCase();
+        });
+      };
+
+      const userKeys = resolveToKeys(cleanAnswer).sort();
+      const correctKeys = resolveToKeys(cleanCorrect).sort();
+
+      console.log(`[submitAnswer] Resolved User Keys: ${JSON.stringify(userKeys)}`);
+      console.log(`[submitAnswer] Resolved Correct Keys: ${JSON.stringify(correctKeys)}`);
+
+      // Multi-select vs single-select logic
+      if (correctKeys.length > 1) {
+        // Multi-select: check for wrong selections and partial credit
+        const hasWrongSelection = userKeys.some(key => !correctKeys.includes(key));
 
         if (hasWrongSelection) {
           isCorrect = false;
           pointsAwarded = 0;
+          console.log(`[submitAnswer] Wrong selection detected, 0 points`);
         } else {
-          // 2. Calculate correct selections
-          const correctSelections = submittedOptions.filter(opt => correctOptions.includes(opt)).length;
-          const totalCorrectNeeded = correctOptions.length;
+          const correctSelections = userKeys.filter(key => correctKeys.includes(key)).length;
+          const totalCorrectNeeded = correctKeys.length;
 
           if (correctSelections === totalCorrectNeeded) {
             isCorrect = true;
             pointsAwarded = question.points;
+            console.log(`[submitAnswer] All correct! Full points: ${pointsAwarded}`);
           } else if (correctSelections > 0) {
-            isCorrect = false; // Partially correct
+            isCorrect = false;
             pointsAwarded = Math.floor((correctSelections / totalCorrectNeeded) * question.points);
+            console.log(`[submitAnswer] Partial credit: ${correctSelections}/${totalCorrectNeeded}, ${pointsAwarded} points`);
           } else {
             isCorrect = false;
             pointsAwarded = 0;
+            console.log(`[submitAnswer] No correct selections, 0 points`);
           }
         }
       } else {
-        // Single select logic (legacy compatible)
-        const submitted = submittedOptions[0] || '';
-        const correct = correctOptions[0] || '';
-        isCorrect = submitted === correct;
+        // Single-select: exact match required
+        isCorrect = JSON.stringify(userKeys) === JSON.stringify(correctKeys);
         pointsAwarded = isCorrect ? question.points : 0;
+        console.log(`[submitAnswer] Single-select result: ${isCorrect} (${pointsAwarded} pts)`);
       }
     } else if (question.questionType === 'js_engine_challenge') {
       // For JS Engine challenge, score is calculated on frontend (0-100)
