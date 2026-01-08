@@ -19,8 +19,8 @@ async function main() {
     } else {
         console.log('\n[questionNumber=7 NOT FOUND]');
 
-        // Fallback: Try 7th item by order
-        const allQuestions = await db.select().from(questions).orderBy(asc(questions.order));
+        // Fallback: Try 7th item by questionNumber
+        const allQuestions = await db.select().from(questions).orderBy(asc(questions.questionNumber));
         if (allQuestions.length >= 7) {
             const q7 = allQuestions[6];
             console.log('\n[Found by Index 6 (7th item)]');

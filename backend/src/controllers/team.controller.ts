@@ -294,9 +294,13 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
       const cleanAnswer = answer ? String(answer).trim() : '';
       const cleanCorrect = question.correctAnswer ? String(question.correctAnswer).trim() : '';
 
-      console.log(`[submitAnswer] MCQ Validation for Q:${question.id}`);
-      console.log(`[submitAnswer] User answer: "${cleanAnswer}"`);
-      console.log(`[submitAnswer] Correct answer: "${cleanCorrect}"`);
+      console.log(`\n========== MCQ VALIDATION START ==========`);
+      console.log(`[submitAnswer] Question ID: ${question.id}`);
+      console.log(`[submitAnswer] Question Title: "${question.title}"`);
+      console.log(`[submitAnswer] Team: ${teamNumber}`);
+      console.log(`[submitAnswer] Raw User answer: "${cleanAnswer}" (type: ${typeof answer})`);
+      console.log(`[submitAnswer] Raw Correct answer: "${cleanCorrect}" (type: ${typeof question.correctAnswer})`);
+      console.log(`[submitAnswer] Raw options from DB: ${question.options}`);
 
       // Parse options from database
       let options: any[] = [];
@@ -397,8 +401,10 @@ export const submitAnswer = async (req: Request, res: Response): Promise<void> =
         // Single-select: exact match required
         isCorrect = JSON.stringify(userKeys) === JSON.stringify(correctKeys);
         pointsAwarded = isCorrect ? question.points : 0;
-        console.log(`[submitAnswer] Single-select result: ${isCorrect} (${pointsAwarded} pts)`);
+        console.log(`[submitAnswer] Single-select comparison: ${JSON.stringify(userKeys)} === ${JSON.stringify(correctKeys)}`);
+        console.log(`[submitAnswer] Single-select result: ${isCorrect ? '✓ CORRECT' : '✗ INCORRECT'} (${pointsAwarded}/${question.points} pts)`);
       }
+      console.log(`========== MCQ VALIDATION END ==========\n`);
     } else if (question.questionType === 'js_engine_challenge') {
       // For JS Engine challenge, score is calculated on frontend (0-100)
       const parsed = typeof answer === 'string' ? JSON.parse(answer) : answer;

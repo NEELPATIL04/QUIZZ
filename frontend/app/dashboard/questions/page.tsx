@@ -471,53 +471,75 @@ export default function QuestionsPage() {
       if (question.options) {
         let parsed = question.options;
         console.log("Raw question options:", parsed);
+        console.log("Raw question options type:", typeof parsed);
 
-        // Robust Parsing Logic
+        // Robust Parsing Logic with multiple attempts
         if (typeof parsed === 'string') {
           try {
             parsed = JSON.parse(parsed);
+            console.log("After first parse:", parsed, "Type:", typeof parsed);
           } catch (e) {
             console.warn("First parse failed, assuming raw string or invalid JSON", e);
           }
         }
 
-        // Check for double encoding
+        // Check for double encoding - parse again if still a string
         if (typeof parsed === 'string') {
           try {
             parsed = JSON.parse(parsed);
+            console.log("After second parse (unwrapping):", parsed, "Type:", typeof parsed);
           } catch (e) {
             console.warn("Second parse failed", e);
           }
         }
 
+        // Check for triple encoding (just in case)
+        if (typeof parsed === 'string') {
+          try {
+            parsed = JSON.parse(parsed);
+            console.log("After third parse (triple unwrapping):", parsed, "Type:", typeof parsed);
+          } catch (e) {
+            console.warn("Third parse failed - giving up on parsing", e);
+          }
+        }
+
         // Now parsed should be an Array or Object
         if (Array.isArray(parsed)) {
-          console.log("Parsed as Array:", parsed);
+          console.log("Successfully parsed as Array:", parsed);
           const texts = parsed.map((o: any) => {
             if (typeof o === 'string') return o;
             if (o && typeof o === 'object') {
+              // Extract text from structured option object
               return o.text || o.value || o.label || o.key || '';
             }
             return String(o);
           });
 
+          // Fill up to 4 options
           for (let i = 0; i < 4; i++) {
             if (i < texts.length) parsedOptions[i] = texts[i] || '';
           }
+          console.log("Extracted option texts:", parsedOptions);
         } else if (typeof parsed === 'object' && parsed !== null) {
           console.log("Parsed as Object:", parsed);
           const values = Object.values(parsed);
           for (let i = 0; i < 4; i++) {
-            if (i < values.length) parsedOptions[i] = String(values[i] || '');
+            if (i < values.length) {
+              const val = values[i];
+              if (typeof val === 'object' && val !== null && 'text' in val) {
+                parsedOptions[i] = String((val as any).text || '');
+              } else {
+                parsedOptions[i] = String(val || '');
+              }
+            }
           }
+          console.log("Extracted option texts from object:", parsedOptions);
         } else {
-          console.error("Parsed options is not array/object:", typeof parsed);
+          console.error("Parsed options is not array/object:", typeof parsed, parsed);
         }
       }
     } catch (e) {
       console.error("Critical error processing options for edit:", e);
-
-
     }
 
     setFormData({

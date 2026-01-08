@@ -336,11 +336,23 @@ export const createQuestion = async (req: AuthRequest, res: Response): Promise<v
       }
     }
 
-    // Handle options: Ensure it's stored as a JSON string
+    // Handle options: Ensure it's stored as a JSON string (consistent with updateQuestion)
     let optionsString: string | null = null;
-    if (options) {
-      optionsString = typeof options === 'string' ? options : JSON.stringify(options);
+    if (options !== undefined && options !== null) {
+      if (typeof options === 'string') {
+        if (options.trim() === '') {
+          optionsString = null;
+        } else {
+          // String input - already stringified by frontend
+          optionsString = options;
+        }
+      } else if (Array.isArray(options) || typeof options === 'object') {
+        // Object/Array input - stringify it
+        optionsString = JSON.stringify(options);
+      }
     }
+
+    console.log(`[createQuestion] Options to save: ${optionsString ? optionsString.substring(0, 100) : 'null'}`);
 
     const [newQuestion] = await db.insert(questions).values({
       questionNumber,
@@ -375,31 +387,59 @@ export const updateQuestion = async (req: AuthRequest, res: Response): Promise<v
     console.log(`[updateQuestion] Updating Q:${id}`);
     console.log(`[updateQuestion] Payload options type: ${typeof options}`);
     if (typeof options === 'string') {
-      console.log(`[updateQuestion] Payload options (string): ${options.substring(0, 50)}...`);
+      console.log(`[updateQuestion] Payload options (string): ${options.substring(0, 100)}...`);
     } else if (Array.isArray(options)) {
-      console.log(`[updateQuestion] Payload options (array): length ${options.length}`);
+      console.log(`[updateQuestion] Payload options (array): length ${options.length}`, options);
     }
 
-    // Handle options - check if already stringified to prevent double-encoding
+    // Handle options - CRITICAL FIX for options disappearing
     let optionsString: string | undefined = undefined;
-    if (options) {
+    if (options !== undefined && options !== null) {
       if (typeof options === 'string') {
-        // Check if it's double stringified
-        try {
-          const parsed = JSON.parse(options);
-          if (typeof parsed === 'string') {
-            optionsString = parsed; // It was double stringified, now single
-          } else {
-            optionsString = options; // It was single stringified
+        // String input - need to determine if it's already JSON or needs parsing
+        if (options.trim() === '') {
+          // Empty string - keep as null
+          optionsString = undefined;
+        } else {
+          try {
+            // Try to parse it to see what's inside
+            const parsed = JSON.parse(options);
+
+            // Check what we got after parsing
+            if (typeof parsed === 'string') {
+              // Double-stringified - parse again to get the actual data
+              console.log(`[updateQuestion] Detected double-stringified options, unwrapping...`);
+              const doubleParsed = JSON.parse(parsed);
+              // Now stringify it once properly
+              optionsString = JSON.stringify(doubleParsed);
+              console.log(`[updateQuestion] After unwrapping: ${optionsString.substring(0, 100)}...`);
+            } else if (Array.isArray(parsed)) {
+              // Already properly stringified array - use as is
+              optionsString = options;
+              console.log(`[updateQuestion] Options is properly stringified array`);
+            } else if (typeof parsed === 'object' && parsed !== null) {
+              // Stringified object - use as is
+              optionsString = options;
+              console.log(`[updateQuestion] Options is properly stringified object`);
+            } else {
+              // Something else - just store the string
+              optionsString = options;
+            }
+          } catch (e) {
+            // Not valid JSON - store as plain text (rare case)
+            console.log(`[updateQuestion] Options string is not JSON, storing as-is`);
+            optionsString = options;
           }
-        } catch (e) {
-          optionsString = options; // Valid string but not JSON (rare but possible?)
         }
-      } else {
-        // It's an object/array, stringify it
+      } else if (Array.isArray(options) || typeof options === 'object') {
+        // Object/Array input - stringify it once
         optionsString = JSON.stringify(options);
+        console.log(`[updateQuestion] Stringified object/array options: ${optionsString.substring(0, 100)}...`);
       }
     }
+
+    console.log(`[updateQuestion] Final optionsString to save: ${optionsString ? optionsString.substring(0, 150) : 'undefined'}...`);
+
 
     // Helper for JSON fields
     const safeStringify = (val: any) => typeof val === 'object' ? JSON.stringify(val) : val;
