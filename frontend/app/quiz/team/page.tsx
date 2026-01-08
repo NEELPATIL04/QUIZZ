@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import HtmlTreeBuilderFinal from '@/components/HtmlTreeBuilderFinal';
 import TrueFalseDragDropChallenge from '@/components/TrueFalseDragDropChallenge';
 import MultipleChoiceChallenge from '@/components/MultipleChoiceChallenge';
 import MatchFollowingChallenge from '@/components/MatchFollowingChallenge';
+import BidRoundInstructions from '@/components/BidRoundInstructions';
 
 export default function TeamQuizPage() {
   const router = useRouter();
@@ -32,6 +33,13 @@ export default function TeamQuizPage() {
   const [isQuizEnded, setIsQuizEnded] = useState(false);
   const [winnerTeam, setWinnerTeam] = useState<any>(null);
   const [mcqTimerState, setMcqTimerState] = useState<any>(null);
+
+  // Use ref to track current question index for closures
+  const currentQuestionIndexRef = useRef(currentQuestionIndex);
+
+  useEffect(() => {
+    currentQuestionIndexRef.current = currentQuestionIndex;
+  }, [currentQuestionIndex]);
 
   useEffect(() => {
     const storedTeamNumber = sessionStorage.getItem('teamNumber');
@@ -61,41 +69,149 @@ export default function TeamQuizPage() {
     }
   }, [currentQuestionIndex, teamNumber]);
 
+  const [globalActiveQuestionId, setGlobalActiveQuestionId] = useState<string | null>(null);
+  const [bidRoundState, setBidRoundState] = useState<{
+    hasEnteredBidRound: boolean;
+    questionBeforeBidRound: number | null;
+    lastActiveBidQuestion: number | null;
+  }>({
+    hasEnteredBidRound: false,
+    questionBeforeBidRound: null,
+    lastActiveBidQuestion: null,
+  });
+
+  // Load bid round state from sessionStorage on mount
+  useEffect(() => {
+    if (teamNumber !== null) {
+      const savedState = sessionStorage.getItem(`bidRoundState_${teamNumber}`);
+      if (savedState) {
+        try {
+          setBidRoundState(JSON.parse(savedState));
+        } catch (e) {
+          console.error('Error parsing bid round state:', e);
+        }
+      }
+    }
+  }, [teamNumber]);
+
+  // Save bid round state to sessionStorage whenever it changes
+  useEffect(() => {
+    if (teamNumber !== null) {
+      sessionStorage.setItem(`bidRoundState_${teamNumber}`, JSON.stringify(bidRoundState));
+    }
+  }, [bidRoundState, teamNumber]);
+
   useEffect(() => {
     if (!teamNumber) return;
     const interval = setInterval(() => {
       fetchQuestions();
       fetchTeamScore(teamNumber);
-      // Fetch MCQ timer state if current question is mcq_bidding
-      if (questions.length > 0 && currentQuestionIndex < questions.length) {
-        const q = questions[currentQuestionIndex];
-        if (q && q.questionType === 'mcq_bidding') {
-          fetchMcqTimerState(q.id);
+
+      // Poll for global current question to auto-jump
+      api.getCurrentQuestion().then((currentQData) => {
+        if (currentQData && currentQData.id) {
+          setGlobalActiveQuestionId(currentQData.id); // Store global active ID
+          setQuestions((currentQuestions) => {
+            const index = currentQuestions.findIndex(q => q.id === currentQData.id);
+            if (index !== -1) {
+              // CRITICAL FIX: Don't auto-sync for bid round questions
+              // Check BOTH the current question AND the target question
+              const currentQ = currentQuestions[currentQuestionIndexRef.current];
+              const targetQ = currentQuestions[index];
+              const isCurrentBidRound = currentQ && currentQ.questionType === 'mcq_bidding';
+              const isTargetBidRound = targetQ && targetQ.questionType === 'mcq_bidding';
+
+              // Only auto-sync if NEITHER current NOR target is a bid round question
+              // This prevents jumping TO bid rounds and jumping FROM bid rounds
+              if (!isCurrentBidRound && !isTargetBidRound) {
+                setCurrentQuestionIndex((prev) => {
+                  if (prev !== index) return index;
+                  return prev;
+                });
+              }
+            }
+            return currentQuestions;
+          });
+        } else {
+          setGlobalActiveQuestionId(null);
         }
-      }
+      }).catch(err => console.error("Error polling current question", err));
     }, 2000);
     return () => clearInterval(interval);
   }, [teamNumber, questions, currentQuestionIndex]);
 
-  // Redirect to instructions if MCQ bid round is disabled
+  // Separate effect for fetching MCQ timer state
   useEffect(() => {
     if (questions.length > 0 && currentQuestionIndex < questions.length) {
-      const currentQ = questions[currentQuestionIndex];
-      if (currentQ && currentQ.questionType === 'mcq_bidding') {
-        if (mcqTimerState && !mcqTimerState.bidRoundEnabled) {
-          router.push(`/quiz/bid-instructions?questionId=${currentQ.id}`);
-        }
+      const q = questions[currentQuestionIndex];
+      if (q && q.questionType === 'mcq_bidding') {
+        // DON'T clear timer state immediately - keep showing previous state until new one loads
+        // This prevents flickering
+
+        // Fetch immediately when question changes
+        fetchMcqTimerState(q.id);
+
+        // Then poll every 2 seconds
+        const interval = setInterval(() => {
+          fetchMcqTimerState(q.id);
+        }, 2000);
+
+        return () => clearInterval(interval);
+      } else {
+        // Not a bid round question, clear the timer state
+        setMcqTimerState(null);
       }
     }
-  }, [mcqTimerState, questions, currentQuestionIndex, router]);
+  }, [currentQuestionIndex, questions]);
 
   const fetchMcqTimerState = async (questionId: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/quiz/mcq/${questionId}/timer`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/mcq/${questionId}/timer`, {
         cache: 'no-store'
       });
       const data = await response.json();
-      setMcqTimerState(data.timerState);
+      const newTimerState = data.timerState;
+
+      // Update state only if something actually changed
+      setMcqTimerState((prevState: any) => {
+        // If no new state, return previous to avoid re-render
+        if (!newTimerState) return prevState;
+
+        // Check if this is for a different question - only update if it's the current one
+        if (prevState && prevState.questionId !== questionId) {
+          // Different question, update
+          return { ...newTimerState, questionId };
+        }
+
+        // Same question - check if anything actually changed
+        if (prevState &&
+            prevState.bidRoundEnabled === newTimerState.bidRoundEnabled &&
+            prevState.isRunning === newTimerState.isRunning &&
+            prevState.timeRemaining === newTimerState.timeRemaining &&
+            prevState.biddingClosed === newTimerState.biddingClosed &&
+            prevState.answerRevealed === newTimerState.answerRevealed) {
+          // Nothing changed, return previous state to prevent re-render
+          return prevState;
+        }
+
+        // Check if bid round was disabled while we're in a bid round question
+        if (prevState && prevState.questionId === questionId &&
+            prevState.bidRoundEnabled && newTimerState && !newTimerState.bidRoundEnabled) {
+          // Bid round was just disabled - save the current question as last active using ref
+          setBidRoundState(prevBidState => {
+            if (prevBidState.hasEnteredBidRound) {
+              return {
+                ...prevBidState,
+                lastActiveBidQuestion: currentQuestionIndexRef.current,
+              };
+            }
+            return prevBidState;
+          });
+        }
+
+        // Something changed, return new state with questionId
+        return { ...newTimerState, questionId };
+      });
     } catch (error) {
       console.error('Error fetching MCQ timer state:', error);
     }
@@ -128,7 +244,7 @@ export default function TeamQuizPage() {
 
   const fetchMemberRole = async (teamNum: number, memberId: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/public/teams/${teamNum}/members`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/teams/${teamNum}/members`);
       const members = await response.json();
       const member = members.find((m: any) => m.id === memberId);
       if (member) {
@@ -251,27 +367,111 @@ export default function TeamQuizPage() {
 
   const handleNextQuestion = () => {
     const currentQ = questions[currentQuestionIndex];
+
     if (currentQ?.isFlagged) {
       setIsQuizEnded(true);
       fetchWinner();
-    } else if (currentQuestionIndex < questions.length - 1) {
-      const nextQ = questions[currentQuestionIndex + 1];
+      return;
+    }
 
-      // If next question is MCQ bidding, go to instructions page
-      if (nextQ && nextQ.questionType === 'mcq_bidding') {
-        router.push(`/quiz/bid-instructions?questionId=${nextQ.id}`);
-      } else {
-        setCurrentQuestionIndex(prev => prev + 1);
-        window.scrollTo(0, 0);
+    if (currentQuestionIndex < questions.length - 1) {
+      const nextQuestion = questions[currentQuestionIndex + 1];
+
+      // Check if current question is a bid round question
+      const isCurrentBidRound = currentQ?.questionType === 'mcq_bidding';
+      const isNextBidRound = nextQuestion?.questionType === 'mcq_bidding';
+
+      if (isNextBidRound && !bidRoundState.hasEnteredBidRound) {
+        // Entering bid round for the first time - save current question
+        setBidRoundState({
+          hasEnteredBidRound: true,
+          questionBeforeBidRound: currentQuestionIndex,
+          lastActiveBidQuestion: currentQuestionIndex + 1,
+        });
+      } else if (isNextBidRound && bidRoundState.hasEnteredBidRound) {
+        // Moving within bid round - update last active
+        setBidRoundState(prev => ({
+          ...prev,
+          lastActiveBidQuestion: currentQuestionIndex + 1,
+        }));
       }
+
+      setCurrentQuestionIndex(prev => prev + 1);
+      window.scrollTo(0, 0);
     }
   };
 
   const handlePreviousQuestion = () => {
     if (currentQuestionIndex > 0) {
+      const currentQ = questions[currentQuestionIndex];
+      const prevQuestion = questions[currentQuestionIndex - 1];
+
+      // Check if we're in a bid round and updating the last active question
+      const isCurrentBidRound = currentQ?.questionType === 'mcq_bidding';
+      const isPrevBidRound = prevQuestion?.questionType === 'mcq_bidding';
+
+      if (isPrevBidRound && bidRoundState.hasEnteredBidRound) {
+        // Moving within bid round - update last active
+        setBidRoundState(prev => ({
+          ...prev,
+          lastActiveBidQuestion: currentQuestionIndex - 1,
+        }));
+      }
+
       setCurrentQuestionIndex(prev => prev - 1);
       window.scrollTo(0, 0);
     }
+  };
+
+  const handleExitBidRound = () => {
+    const currentQ = questions[currentQuestionIndex];
+    const isCurrentBidRound = currentQ?.questionType === 'mcq_bidding';
+
+    if (!isCurrentBidRound) return;
+
+    // Find the first and last bid round questions
+    const firstBidRoundIndex = questions.findIndex(q => q.questionType === 'mcq_bidding');
+    const lastBidRoundIndex = questions.map(q => q.questionType === 'mcq_bidding').lastIndexOf(true);
+
+    const isFirstBidQuestion = currentQuestionIndex === firstBidRoundIndex;
+    const isLastBidQuestion = currentQuestionIndex === lastBidRoundIndex;
+
+    if (isFirstBidQuestion) {
+      // Exit from FIRST question - go back to question BEFORE bid round (Q14)
+      if (bidRoundState.questionBeforeBidRound !== null) {
+        setCurrentQuestionIndex(bidRoundState.questionBeforeBidRound);
+      } else {
+        // Fallback: find the question just before the first bid round
+        const prevIndex = firstBidRoundIndex - 1;
+        if (prevIndex >= 0) {
+          setCurrentQuestionIndex(prevIndex);
+        }
+      }
+      // Reset bid round state
+      setBidRoundState({
+        hasEnteredBidRound: false,
+        questionBeforeBidRound: null,
+        lastActiveBidQuestion: null,
+      });
+    } else if (isLastBidQuestion) {
+      // Exit from LAST question - go to next question AFTER bid round (Q18)
+      const nextNonBidRoundIndex = questions.findIndex((q, idx) =>
+        idx > currentQuestionIndex && q.questionType !== 'mcq_bidding'
+      );
+
+      if (nextNonBidRoundIndex !== -1) {
+        setCurrentQuestionIndex(nextNonBidRoundIndex);
+      }
+      // Reset bid round state
+      setBidRoundState({
+        hasEnteredBidRound: false,
+        questionBeforeBidRound: null,
+        lastActiveBidQuestion: null,
+      });
+    }
+    // If on middle question (Q16), exit button shouldn't appear, so do nothing
+
+    window.scrollTo(0, 0);
   };
 
   if (isQuizEnded) {
@@ -330,6 +530,15 @@ export default function TeamQuizPage() {
     // Check if next question is first MCQ bidding question
     const nextQuestion = questions[currentQuestionIndex + 1];
     const isNextQuestionBidRound = nextQuestion && nextQuestion.questionType === 'mcq_bidding';
+    const isCurrentBidRound = currentQuestion?.questionType === 'mcq_bidding';
+
+    // Determine if this is the first or last bid round question
+    const firstBidRoundIndex = questions.findIndex(q => q.questionType === 'mcq_bidding');
+    const lastBidRoundIndex = questions.reduce((lastIdx, q, idx) =>
+      q.questionType === 'mcq_bidding' ? idx : lastIdx, -1);
+
+    const isFirstBidQuestion = currentQuestionIndex === firstBidRoundIndex;
+    const isLastBidQuestion = currentQuestionIndex === lastBidRoundIndex;
 
     return {
       teamNumber: teamNumber!,
@@ -339,6 +548,11 @@ export default function TeamQuizPage() {
       nextQuestionIsBidRound: isNextQuestionBidRound,
       onPrevious: handlePreviousQuestion,
       hasPreviousQuestion: currentQuestionIndex > 0,
+      onExitBidRound: handleExitBidRound,
+      isFirstBidQuestion,
+      isLastBidQuestion,
+      isBidRound: isCurrentBidRound,
+      bidRoundState,
       onSubmit: async (answer: any, timeTaken?: number, startTime?: number | Date) => {
         try {
           const result = await api.submitAnswer(
@@ -364,6 +578,27 @@ export default function TeamQuizPage() {
 
   const commonProps = getCommonProps();
 
+  // Check if we should show instructions page for bid round
+  // Show instructions ONLY when bid rounds are DISABLED (bidRoundEnabled = false)
+  // Once enabled, all bid round questions show directly without instructions between them
+  if (currentQuestion.questionType === 'mcq_bidding') {
+    if (!mcqTimerState) {
+      // Still loading timer state - show spinner
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+        </div>
+      );
+    }
+
+    // If bid round is DISABLED, show instructions page
+    if (!mcqTimerState.bidRoundEnabled) {
+      return <BidRoundInstructions />;
+    }
+
+    // If bid round is ENABLED, continue to show the actual question below
+  }
+
   return (
     <>
       {currentQuestion.questionType === 'git_challenge' ? (
@@ -373,7 +608,7 @@ export default function TeamQuizPage() {
       ) : currentQuestion.questionType === 'js_engine_challenge' ? (
         <JsEngineChallenge question={currentQuestion} {...commonProps} />
       ) : currentQuestion.questionType === 'mcq_bidding' ? (
-        <McqBiddingChallenge question={currentQuestion} {...commonProps} teamScore={teamScore} />
+        <McqBiddingChallenge question={currentQuestion} {...commonProps} teamScore={teamScore} mcqTimerState={mcqTimerState} />
       ) : currentQuestion.questionType === 'broken_html_challenge' ? (
         <HtmlTreeBuilderFinal question={currentQuestion} {...commonProps} />
       ) : currentQuestion.questionType === 'true_false_drag_drop' ? (

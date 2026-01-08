@@ -21,6 +21,7 @@ interface TimerState {
   timeRemaining: number;
   biddingClosed: boolean;
   answerRevealed: boolean;
+  bidRoundEnabled?: boolean;
 }
 
 interface Bid {
@@ -58,7 +59,7 @@ export default function PresenterViewPage() {
 
   const fetchCurrentQuestion = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/presenter/current-question');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/presenter/current-question`);
       const data = await response.json();
 
       setCurrentQuestion(data.question);
@@ -98,6 +99,63 @@ export default function PresenterViewPage() {
 
   // Render MCQ Bidding Question
   if (currentQuestion.questionType === 'mcq_bidding') {
+    // Check if we should show instructions instead of the question
+    // The API returns showInstructions: true if bidRoundEnabled is false
+    // We cast to any because the interface definition above didn't include it yet
+    const showInstructions = (currentQuestion as any).showInstructions || (timerState === null || (timerState && !timerState.bidRoundEnabled));
+
+    if (showInstructions) {
+      return (
+        <div className="min-h-screen bg-slate-900">
+          <div className="p-8">
+            {/* Use the shared component but without navigation buttons since this is a passive view */}
+            <div className="bg-white rounded-xl overflow-hidden shadow-2xl max-w-6xl mx-auto">
+              <div className="p-12 text-center bg-gradient-to-r from-blue-900 to-indigo-900">
+                <h1 className="text-5xl font-bold text-white mb-6">Bid Round Instructions</h1>
+                <p className="text-2xl text-blue-200">Please wait for the admin to start the round...</p>
+              </div>
+              <div className="p-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                  <div className="space-y-6">
+                    <div className="flex items-start gap-4">
+                      <div className="bg-blue-100 p-3 rounded-full"><span className="text-2xl">💰</span></div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-slate-800">Your Score is Your Budget</h3>
+                        <p className="text-xl text-slate-600">Use points from Q1-Q15 to bid.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <div className="bg-green-100 p-3 rounded-full"><span className="text-2xl">✅</span></div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-slate-800">Correct Answers Win</h3>
+                        <p className="text-xl text-slate-600">Keep your bid + share the lost pool.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-6">
+                    <div className="flex items-start gap-4">
+                      <div className="bg-red-100 p-3 rounded-full"><span className="text-2xl">❌</span></div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-slate-800">Wrong Answers Lose</h3>
+                        <p className="text-xl text-slate-600">You lose the points you wagered.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-4">
+                      <div className="bg-yellow-100 p-3 rounded-full"><span className="text-2xl">⏱️</span></div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-slate-800">10 Seconds</h3>
+                        <p className="text-xl text-slate-600">Decide and submit your bid fast!</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     const options = currentQuestion.options ? JSON.parse(currentQuestion.options) : [];
 
     // Calculate bid distribution by option
@@ -164,22 +222,19 @@ export default function PresenterViewPage() {
             return (
               <Card
                 key={option.key}
-                className={`transition-all duration-300 border-4 ${
-                  isCorrect
-                    ? 'bg-gradient-to-br from-green-600 to-emerald-600 border-green-400 shadow-2xl scale-105'
-                    : 'bg-gradient-to-br from-slate-700 to-slate-800 border-slate-500'
-                }`}
+                className={`transition-all duration-300 border-4 ${isCorrect
+                  ? 'bg-gradient-to-br from-green-600 to-emerald-600 border-green-400 shadow-2xl scale-105'
+                  : 'bg-gradient-to-br from-slate-700 to-slate-800 border-slate-500'
+                  }`}
               >
                 <CardContent className="p-8">
                   <div className="flex items-start gap-4 mb-4">
-                    <div className={`text-5xl font-bold ${
-                      isCorrect ? 'text-white' : 'text-purple-400'
-                    }`}>
+                    <div className={`text-5xl font-bold ${isCorrect ? 'text-white' : 'text-purple-400'
+                      }`}>
                       {option.key}.
                     </div>
-                    <p className={`text-2xl flex-1 ${
-                      isCorrect ? 'text-white font-bold' : 'text-white'
-                    }`}>
+                    <p className={`text-2xl flex-1 ${isCorrect ? 'text-white font-bold' : 'text-white'
+                      }`}>
                       {option.text}
                     </p>
                   </div>

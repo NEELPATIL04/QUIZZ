@@ -84,7 +84,7 @@ Which pseudo-class selector formula produces this exact sequence?
     await db.insert(questions).values({
         id: uuidv4(),
         questionNumber: 203,
-        questionType: 'multiple_choice',
+        questionType: 'mcq_bidding',
         title: 'The Stacking Context Trap',
         description: `
 ![Stacking Context](/images/quiz/css_advanced_stacking_context.png)

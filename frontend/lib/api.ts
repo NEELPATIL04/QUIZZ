@@ -234,7 +234,10 @@ export const api = {
       credentials: 'include',
       body: JSON.stringify({ isEnabled }),
     });
-    if (!response.ok) throw new Error('Failed to toggle question');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to toggle question');
+    }
     return response.json();
   },
 
@@ -454,6 +457,15 @@ export const api = {
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to convert question');
+    return response.json();
+  },
+  async disableBidMode(token: string) {
+    const response = await fetch(`${API_URL}/quiz/mcq/disable-global-mode`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to disable global bid mode');
     return response.json();
   },
 };

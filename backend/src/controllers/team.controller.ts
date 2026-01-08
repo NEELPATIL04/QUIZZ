@@ -439,7 +439,20 @@ export const getCurrentQuestion = async (req: Request, res: Response): Promise<v
 
     const [question] = await db.select().from(questions).where(eq(questions.id, config.currentQuestionId));
 
-    res.json(question || null);
+    if (!question) {
+      res.json(null);
+      return;
+    }
+
+    // CRITICAL FIX: If it's a bidding question, ONLY return it if global bid mode is active.
+    // This prevents polling clients from auto-redirecting when the admin has "Disabled" the round
+    // (even if the pointer ID is still set in the database).
+    if (question.questionType === 'mcq_bidding' && !config.isBidQuestionActive) {
+      res.json(null);
+      return;
+    }
+
+    res.json(question);
   } catch (error) {
     console.error('Get current question error:', error);
     res.status(500).json({ error: 'Internal server error' });

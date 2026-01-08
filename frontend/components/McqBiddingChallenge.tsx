@@ -26,9 +26,19 @@ interface McqBiddingChallengeProps {
   onBidSubmitted?: () => void;
   onNext?: () => void;
   onPrevious?: () => void;
+  onExitBidRound?: () => void;
   hasNextQuestion?: boolean;
   hasPreviousQuestion?: boolean;
   nextQuestionIsBidRound?: boolean;
+  isFirstBidQuestion?: boolean;
+  isLastBidQuestion?: boolean;
+  isBidRound?: boolean;
+  bidRoundState?: {
+    hasEnteredBidRound: boolean;
+    questionBeforeBidRound: number | null;
+    lastActiveBidQuestion: number | null;
+  };
+  mcqTimerState?: any;
 }
 
 export default function McqBiddingChallenge({
@@ -39,18 +49,31 @@ export default function McqBiddingChallenge({
   onBidSubmitted,
   onNext,
   onPrevious,
+  onExitBidRound,
   hasNextQuestion,
   hasPreviousQuestion,
   nextQuestionIsBidRound = false,
+  isFirstBidQuestion = false,
+  isLastBidQuestion = false,
+  isBidRound = true,
+  bidRoundState,
+  mcqTimerState: externalTimerState,
 }: McqBiddingChallengeProps) {
   const [selectedOption, setSelectedOption] = useState<string>('');
   const [bidAmount, setBidAmount] = useState<number>(100);
-  const [timerState, setTimerState] = useState<any>(null);
+  const [timerState, setTimerState] = useState<any>(externalTimerState || null);
   const [bidSubmitted, setBidSubmitted] = useState(false);
   const [submittedBid, setSubmittedBid] = useState<any>(null);
   const [mcqResults, setMcqResults] = useState<any>(null);
 
   const [isLoading, setIsLoading] = useState(true);
+
+  // Update timerState when externalTimerState changes
+  useEffect(() => {
+    if (externalTimerState) {
+      setTimerState(externalTimerState);
+    }
+  }, [externalTimerState]);
 
   useEffect(() => {
     // Poll for timer state
@@ -66,7 +89,9 @@ export default function McqBiddingChallenge({
 
   const fetchTimerState = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/public/mcq/${question.id}/timer`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/mcq/${question.id}/timer`, {
+        cache: 'no-store'
+      });
       const data = await response.json();
       if (data.timerState) {
         setTimerState(data.timerState);
@@ -83,7 +108,9 @@ export default function McqBiddingChallenge({
 
   const fetchResults = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/public/mcq/${question.id}/results`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/mcq/${question.id}/results`, {
+        cache: 'no-store'
+      });
       const data = await response.json();
       setMcqResults(data);
     } catch (error) {
@@ -103,7 +130,7 @@ export default function McqBiddingChallenge({
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/public/mcq/bid', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/mcq/bid`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -133,7 +160,7 @@ export default function McqBiddingChallenge({
     }
   };
 
-  const canBid = !bidSubmitted && timerState && timerState.isRunning && !timerState.biddingClosed;
+  const canBid = !bidSubmitted && timerState && timerState.bidRoundEnabled && timerState.isRunning && !timerState.biddingClosed;
 
   if (isLoading) {
     return (
@@ -143,39 +170,49 @@ export default function McqBiddingChallenge({
     );
   }
 
-  // Show instructions screen if bid round not enabled yet
-  if (!timerState || !timerState.bidRoundEnabled) {
-    return (
-      <BidRoundInstructions
-        onNext={onNext}
-        onPrevious={onPrevious}
-        hasNextQuestion={hasNextQuestion}
-        hasPreviousQuestion={hasPreviousQuestion}
-        nextQuestionIsBidRound={nextQuestionIsBidRound}
-        questionNumber={question.questionNumber}
-        questionTitle={question.title}
-        questionDescription={question.description}
-        questionOptions={question.options}
-      />
-    );
-  }
+  // REMOVED: Early return for BidRoundInstructions. 
+  // We want to show the question context even if bid round is not yet enabled.
+  // The 'Waiting for admin' card below will handle the status.
+
+  // Don't show instructions here - let the parent component handle it
+  // This component should ONLY show when bid round is enabled
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-900 via-cyan-900 to-blue-900 p-8">
       {/* Header with Navigation */}
       <div className="mb-6 flex items-center justify-between w-full">
-        {/* Left: Next Question Button */}
-        <div>
-          {hasNextQuestion && onNext && (
+        {/* Left: Navigation Buttons */}
+        <div className="flex items-center gap-3">
+          {/* Exit Bid Round button (always on first question) */}
+          {isFirstBidQuestion && onExitBidRound && (
+            <Button
+              onClick={onExitBidRound}
+              size="lg"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 text-base"
+            >
+              ← Exit Bid Round
+            </Button>
+          )}
+
+          {/* Next Question button (when there's a next bid round question) */}
+          {hasNextQuestion && onNext && nextQuestionIsBidRound && (
             <Button
               onClick={onNext}
               size="lg"
-              className={nextQuestionIsBidRound
-                ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3 text-base"
-                : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3 text-base"
-              }
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-8 py-3 text-base"
             >
               Next Question →
+            </Button>
+          )}
+
+          {/* Exit Bid Round button on last question (when no more bid round questions ahead) */}
+          {(!nextQuestionIsBidRound || !hasNextQuestion) && !isFirstBidQuestion && onExitBidRound && (
+            <Button
+              onClick={onExitBidRound}
+              size="lg"
+              className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 text-base"
+            >
+              Exit Bid Round →
             </Button>
           )}
         </div>
@@ -194,7 +231,8 @@ export default function McqBiddingChallenge({
 
         {/* Right: Previous Button + Score */}
         <div className="flex items-center gap-4">
-          {hasPreviousQuestion && onPrevious && (
+          {/* Previous button (when there's a previous question and we're not on first) */}
+          {hasPreviousQuestion && onPrevious && !isFirstBidQuestion && (
             <Button
               onClick={onPrevious}
               size="lg"
@@ -263,7 +301,20 @@ export default function McqBiddingChallenge({
           </Card>
 
           {/* Status Messages */}
-          {!timerState.isRunning && !timerState.biddingClosed && (
+          {(!timerState || !timerState.bidRoundEnabled) && (
+            <Card className="bg-cyan-50 border border-cyan-300">
+              <CardContent className="py-4 text-center">
+                <div className="animate-pulse flex flex-col items-center">
+                  <AlertTriangle className="h-8 w-8 text-cyan-600 mb-2" />
+                  <p className="text-lg font-semibold text-cyan-800">
+                    Waiting for Admin to Open Bidding...
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {timerState && timerState.bidRoundEnabled && !timerState.isRunning && !timerState.biddingClosed && (
             <Card className="bg-yellow-50 border border-yellow-300">
               <CardContent className="py-4 text-center">
                 <AlertTriangle className="h-8 w-8 text-yellow-600 mx-auto mb-2" />

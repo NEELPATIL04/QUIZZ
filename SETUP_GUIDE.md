@@ -320,6 +320,21 @@ The Git question uses this format:
 - Check `/api/quiz/results` endpoint
 - Verify super_admin role for results page access
 
+### PowerShell "Script execution disabled" error
+If you see `npm : File ... cannot be loaded because running scripts is disabled on this system`:
+1. Open PowerShell as Administrator (optional but recommended)
+2. Run this command to allow local scripts:
+   ```powershell
+   Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+   ```
+3. Type `Y` to confirm.
+4. Try `npm run dev` again.
+
+Alternatively, use Command Prompt (`cmd`) instead of PowerShell, or run:
+```bash
+cmd /c npm run dev
+```
+
 ---
 
 ## 🎨 Customization
@@ -412,6 +427,178 @@ If you encounter issues:
 3. Verify database schema is up to date
 4. Ensure all dependencies are installed
 5. Check API responses in Network tab
+
+---
+
+## 🎰 BID ROUND SETUP & TESTING GUIDE
+
+### Current Status
+✅ **Backend**: Fixed to ensure only ONE bid round question is enabled at a time
+✅ **Frontend**: Fixed auto-sync interference and instructions page logic
+
+### Quick Start for Bid Rounds
+
+#### 1. Initial Database Setup
+Run this script to disable all bid rounds and start fresh:
+```bash
+cd backend
+npx tsx src/scripts/disable-all-bid-rounds.ts
+```
+
+#### 2. Check Bid Round States
+```bash
+cd backend
+npx tsx src/scripts/check-bid-timer-states.ts
+```
+
+### Testing the Bid Round Functionality
+
+#### Test Scenario 1: Initial Navigation to Bid Round
+1. Navigate to question 14 (the question before bid rounds)
+2. Click "Next Question" → Should show **Instructions Page** for Q15
+3. Instructions page should have **NO navigation buttons**
+4. In admin panel, click "Enable Bid Round" for Q15
+5. Frontend should auto-refresh and show **Q15 actual question**
+6. Question should have "Next Question →" and "← Exit Bid Round" buttons
+
+#### Test Scenario 2: Navigate Within Bid Round
+1. From Q15 (enabled), click "Next Question →"
+2. Should show **Instructions Page** for Q16
+3. In admin panel, click "Enable Bid Round" for Q16
+4. Frontend should show **Q16 actual question**
+5. **IMPORTANT**: Q15 should automatically be disabled (verify in database)
+6. Navigate back to Q15 → Should show **Instructions** again
+
+#### Test Scenario 3: Navigate to Last Bid Round Question (Q17)
+1. Navigate to Q16, then click "Next Question →"
+2. Should show **Instructions Page** for Q17 (no timer state exists yet)
+3. In admin panel, enable Q17
+4. Should show Q17 actual question
+5. Should have "Exit Bid Round →" and "← Previous" buttons
+
+#### Test Scenario 4: Exit Bid Round
+1. From Q15 (first bid round question), click "← Exit Bid Round"
+2. Should go back to Q14 (the question before bid round)
+3. From Q17 (last bid round question), click "Exit Bid Round →"
+4. Should go to Q18 (the question after bid round)
+
+#### Test Scenario 5: Disable During Bid Round
+1. Enable and navigate to Q15
+2. In admin panel, click "Disable Bid Round" for Q15
+3. Frontend should refresh and show **Instructions Page**
+4. Re-enable Q15 from admin panel
+5. Should return to Q15 actual question
+
+### Key Changes Made
+
+#### Backend Changes
+**File**: [backend/src/controllers/mcq.controller.ts:32-82](backend/src/controllers/mcq.controller.ts#L32-L82)
+
+Added to `enableBidRoundInternal()` function:
+```typescript
+// CRITICAL: First, disable ALL other bid round questions to ensure only ONE is active
+await db
+  .update(mcqTimerState)
+  .set({
+    bidRoundEnabled: false,
+    updatedAt: new Date(),
+  });
+```
+
+This ensures mutual exclusion - only one bid round question is enabled at any time.
+
+#### Frontend Changes
+
+**1. Disable Auto-Sync for Bid Round Questions**
+**File**: [frontend/app/quiz/team/page.tsx:117-128](frontend/app/quiz/team/page.tsx#L117-L128)
+
+Modified the polling mechanism to NOT auto-sync when on a bid round question:
+```typescript
+// CRITICAL FIX: Don't auto-sync if we're on a bid round question
+// Let the user navigate bid rounds manually
+const currentQ = currentQuestions[currentQuestionIndexRef.current];
+const isBidRound = currentQ && currentQ.questionType === 'mcq_bidding';
+
+// Only auto-sync if NOT on a bid round question
+if (!isBidRound) {
+  setCurrentQuestionIndex((prev) => {
+    if (prev !== index) return index;
+    return prev;
+  });
+}
+```
+
+**2. Fixed Instructions Page Logic**
+**File**: [frontend/app/quiz/team/page.tsx:552-557](frontend/app/quiz/team/page.tsx#L552-L557)
+
+Updated to show instructions when:
+- Timer state doesn't exist yet (never enabled), OR
+- Timer state exists for this question AND is disabled
+
+```typescript
+const shouldShowInstructions = currentQuestion.questionType === 'mcq_bidding' && (
+  // Case 1: No timer state at all (never enabled) - show instructions
+  !mcqTimerState ||
+  // Case 2: Timer state exists, matches this question, and is disabled
+  (mcqTimerState.questionId === currentQuestion.id && !mcqTimerState.bidRoundEnabled)
+);
+```
+
+### Expected Database Behavior
+
+**Rule**: Only ONE bid round enabled at a time
+
+When you enable Q16, the backend automatically disables Q15 and Q17. This ensures:
+- No conflicts between multiple enabled bid rounds
+- Clean navigation flow
+- No jumping between questions
+
+**Timer State Records**:
+- Q15: Has timer state (enabled/disabled based on admin action)
+- Q16: Has timer state (enabled/disabled based on admin action)
+- Q17: May not have timer state initially (shows instructions until first enable)
+
+### Troubleshooting Bid Rounds
+
+#### Issue: Questions keep jumping back to Q15
+**Cause**: Auto-sync was interfering with manual navigation
+**Fix**: Now disabled for bid round questions ✅
+
+#### Issue: Q17 shows loading spinner forever
+**Cause**: No timer state exists yet, and frontend was waiting for it
+**Fix**: Now shows instructions when timer state doesn't exist ✅
+
+#### Issue: Multiple bid rounds enabled simultaneously
+**Cause**: Backend wasn't disabling other questions when enabling one
+**Fix**: Backend now disables ALL others before enabling one ✅
+
+#### Issue: Instructions not showing for disabled questions
+**Cause**: Logic only checked if timer state existed AND was disabled
+**Fix**: Now also shows instructions when timer state doesn't exist ✅
+
+### Navigation Flow
+```
+Q14 (Regular) → Next → Q15 (Instructions) → Enable → Q15 (Question)
+Q15 (Question) → Next → Q16 (Instructions) → Enable → Q16 (Question)
+Q16 (Question) → Next → Q17 (Instructions) → Enable → Q17 (Question)
+Q17 (Question) → Exit → Q18 (Regular)
+```
+
+### Exit Button Behavior
+- **First Question (Q15)**: "← Exit Bid Round" goes back to Q14
+- **Middle Questions (Q16)**: "Next →" and "← Previous" buttons
+- **Last Question (Q17)**: "Exit Bid Round →" goes forward to Q18
+
+### Success Criteria
+
+✅ Instructions page shows for all disabled bid round questions
+✅ No navigation buttons on instructions page
+✅ Enabling from admin panel shows the actual question
+✅ Only one bid round question is enabled at a time in database
+✅ Navigation doesn't jump back to Q15 automatically
+✅ Can navigate freely between bid rounds (seeing instructions or questions based on state)
+✅ Exit buttons work correctly from first and last questions
+✅ Re-enabling after disable returns to the last active question
 
 ---
 

@@ -205,7 +205,7 @@ export default function PointsManagerPage() {
         try {
             const token = localStorage.getItem('token');
             if (token) {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/quiz/teams/${editingTeam.id}/score`, {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL}'}/quiz/teams/${editingTeam.id}/score`, {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',

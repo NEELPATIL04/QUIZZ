@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import BidRoundInstructions from '@/components/BidRoundInstructions';
+import { api } from '@/lib/api';
 
 function BidInstructionsContent() {
   const router = useRouter();
@@ -25,11 +26,7 @@ function BidInstructionsContent() {
 
   const fetchTargetQuestion = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/public/questions/enabled');
-      if (!response.ok) {
-        throw new Error('Failed to fetch questions');
-      }
-      const data = await response.json();
+      const data = await api.getEnabledQuestions();
 
       // Parse options if needed
       const parsedData = data.map((q: any) => ({
@@ -48,7 +45,6 @@ function BidInstructionsContent() {
       }
 
       // Fallback: Use logic for "first MCQ question" if no ID or ID not found
-      // This supports legacy behavior or deep linking without ID
       const mcqQuestions = parsedData
         .filter((q: any) => q.questionType === 'mcq_bidding')
         .sort((a: any, b: any) => a.questionNumber - b.questionNumber);
@@ -57,7 +53,7 @@ function BidInstructionsContent() {
         setTargetQuestion(mcqQuestions[0]);
       }
     } catch (error) {
-      console.error('Error fetching MCQ questions:', error);
+      console.error('Error fetching questions:', error);
     } finally {
       setLoading(false);
     }
@@ -65,31 +61,48 @@ function BidInstructionsContent() {
 
   const checkBidRoundStatus = async () => {
     try {
+      // 1. Check for GLOBAL current question (Priority)
+      try {
+        const currentQData = await api.getCurrentQuestion();
+        if (currentQData && currentQData.id) {
+          const allQuestions = await api.getEnabledQuestions();
+          const sortedQuestions = allQuestions.sort((a: any, b: any) => a.questionNumber - b.questionNumber);
+          const index = sortedQuestions.findIndex((q: any) => q.id === currentQData.id);
+
+          if (index !== -1) {
+            const teamNumber = sessionStorage.getItem('teamNumber');
+            if (teamNumber) {
+              sessionStorage.setItem(`currentQuestionIndex_${teamNumber}`, index.toString());
+            }
+            // Always redirect if found active
+            router.push('/quiz/team');
+            return;
+          }
+        }
+      } catch (e) {
+        console.log("Global check failed", e);
+      }
+
       if (!targetQuestion) return;
 
-      const response = await fetch(`http://localhost:5000/api/quiz/mcq/${targetQuestion.id}/timer`, {
+      // 2. Fallback: Check specific target question timer
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quiz/mcq/${targetQuestion.id}/timer`, {
         cache: 'no-store'
       });
       const data = await response.json();
 
-      // If bid round is enabled, set question index and navigate back to team page
       if (data.timerState && data.timerState.bidRoundEnabled) {
-        // Find the index of the TARGET MCQ question
-        const allQuestionsResponse = await fetch('http://localhost:5000/api/public/questions/enabled');
-        if (!allQuestionsResponse.ok) {
-          throw new Error('Failed to fetch questions');
-        }
-        const allQuestions = await allQuestionsResponse.json();
+        const allQuestions = await api.getEnabledQuestions();
         const sortedQuestions = allQuestions.sort((a: any, b: any) => a.questionNumber - b.questionNumber);
-        const mcqIndex = sortedQuestions.findIndex((q: any) => q.id === targetQuestion.id);
+        const index = sortedQuestions.findIndex((q: any) => q.id === targetQuestion.id);
 
-        // Store the index in session storage
-        const teamNumber = sessionStorage.getItem('teamNumber');
-        if (teamNumber && mcqIndex !== -1) {
-          sessionStorage.setItem(`currentQuestionIndex_${teamNumber}`, mcqIndex.toString());
+        if (index !== -1) {
+          const teamNumber = sessionStorage.getItem('teamNumber');
+          if (teamNumber) {
+            sessionStorage.setItem(`currentQuestionIndex_${teamNumber}`, index.toString());
+          }
+          router.push('/quiz/team');
         }
-
-        router.push('/quiz/team');
       }
     } catch (error) {
       console.error('Error checking bid round status:', error);

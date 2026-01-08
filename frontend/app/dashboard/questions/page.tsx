@@ -123,7 +123,7 @@ export default function QuestionsPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:5000/api/quiz/mcq/${questionId}/timer`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quiz/mcq/${questionId}/timer`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -153,7 +153,7 @@ export default function QuestionsPage() {
           continue;
         }
 
-        const response = await fetch(`http://localhost:5000/api/quiz/mcq/${q.id}/timer`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quiz/mcq/${q.id}/timer`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await response.json();
@@ -174,7 +174,7 @@ export default function QuestionsPage() {
       // Pause polling to prevent conflicts
       pausePollingRef.current = true;
 
-      const response = await fetch(`http://localhost:5000/api/quiz/mcq/${questionId}/enable-bid-round`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quiz/mcq/${questionId}/enable-bid-round`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -214,7 +214,7 @@ export default function QuestionsPage() {
       // Pause polling to prevent conflicts
       pausePollingRef.current = true;
 
-      const response = await fetch(`http://localhost:5000/api/quiz/mcq/${questionId}/disable-bid-round`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quiz/mcq/${questionId}/disable-bid-round`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -251,7 +251,7 @@ export default function QuestionsPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:5000/api/quiz/mcq/${questionId}/start-timer`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quiz/mcq/${questionId}/start-timer`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -279,7 +279,7 @@ export default function QuestionsPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:5000/api/quiz/mcq/${questionId}/reveal-answer`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quiz/mcq/${questionId}/reveal-answer`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -373,7 +373,7 @@ export default function QuestionsPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:5000/api/quiz/upload', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quiz/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -547,7 +547,7 @@ export default function QuestionsPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:5000/api/quiz/mcq/${currentQuestionId}/enable-bid-round`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quiz/mcq/${currentQuestionId}/enable-bid-round`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -571,7 +571,7 @@ export default function QuestionsPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:5000/api/quiz/mcq/${currentQuestionId}/start-timer`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quiz/mcq/${currentQuestionId}/start-timer`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -603,7 +603,7 @@ export default function QuestionsPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:5000/api/quiz/mcq/${currentQuestionId}/reveal-answer`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quiz/mcq/${currentQuestionId}/reveal-answer`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

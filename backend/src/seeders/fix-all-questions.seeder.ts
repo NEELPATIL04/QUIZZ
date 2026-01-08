@@ -38,14 +38,23 @@ export async function fixAllQuestions() {
       // The new Advanced CSS questions
       { num: 13, type: 'multiple_choice', titleKey: 'Grid Template Areas' },
       { num: 14, type: 'multiple_choice', titleKey: 'Pseudo-Class' },
-      { num: 15, type: 'multiple_choice', titleKey: 'Stacking Context' },
+      { num: 15, type: 'mcq_bidding', titleKey: 'Stacking Context' },
 
       // MCQ Bidding (moved to end as per sequence)
       { num: 16, type: 'mcq_bidding', titleKey: 'Execution Sequence' },
-      { num: 17, type: 'mcq_bidding', titleKey: 'Call Stack' }
+      { num: 17, type: 'mcq_bidding', titleKey: 'Call Stack' },
+
+      // Q18-Q23: Additional Questions
+      { num: 18, type: 'multiple_choice', titleKey: 'Specificity' },
+      { num: 19, type: 'multiple_choice', titleKey: 'Event Loop' },
+      { num: 20, type: 'multiple_choice', titleKey: 'Hoisting' },
+      { num: 21, type: 'multiple_choice', titleKey: 'Closures' },
+      { num: 22, type: 'multiple_choice', titleKey: 'Prototypes' },
+      { num: 23, type: 'multiple_choice', titleKey: 'This Keyword' }
     ];
 
     console.log('--- Applying Order (Safe Mode + Cleanup) ---');
+
 
     console.log('1. Shifting ALL questions to temporary negative IDs...');
     for (const [index, q] of allQuestions.entries()) {
@@ -63,7 +72,11 @@ export async function fixAllQuestions() {
       // Find candidates
       const candidates = shiftedQuestions.filter(q =>
         q.questionType === target.type &&
-        q.title.toLowerCase().includes(target.titleKey.toLowerCase())
+        (q.title.toLowerCase().includes(target.titleKey.toLowerCase()) ||
+          // Fallback: if titleKey didn't match, maybe try just matching the number if it was already correct?
+          // But here we rely on titleKey as the source of truth for "which question is which".
+          // Let's broaden the match if needed, but for now strict titleKey match is consistent with previous logic.
+          false)
       );
 
       if (candidates.length === 0) {
@@ -100,7 +113,7 @@ export async function fixAllQuestions() {
     }
 
     console.log('\n✨ Sequence Fix & Cleanup Complete!');
-    console.log('Total Questions should now be: ' + targets.length);
+    console.log('Total Questions should now be: 23');
 
   } catch (error) {
     console.error('Error fixing questions:', error);

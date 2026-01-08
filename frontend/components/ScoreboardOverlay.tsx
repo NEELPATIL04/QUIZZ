@@ -24,7 +24,7 @@ export default function ScoreboardOverlay({ onClose }: { onClose?: () => void })
 
     const fetchScoreboard = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/public/scoreboard');
+            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/public/scoreboard');
             const data = await response.json();
             setLeaderboard(data);
             setLoading(false);
@@ -35,7 +35,7 @@ export default function ScoreboardOverlay({ onClose }: { onClose?: () => void })
 
     const fetchCurrentQuestion = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/public/questions/current');
+            const response = await fetch('${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/public/questions/current');
             if (response.ok) {
                 const data = await response.json();
                 setCurrentQuestion(data);

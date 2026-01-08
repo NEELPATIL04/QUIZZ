@@ -58,7 +58,7 @@ export default function TeamManagementPage() {
       // Fetch members for each team
       const membersData: { [key: string]: any[] } = {};
       for (const team of teamsData) {
-        const members = await fetch(`http://localhost:5000/api/public/teams/${team.teamNumber}/members`).then(r => r.json());
+        const members = await fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/public/teams/${team.teamNumber}/members`).then(r => r.json());
         membersData[team.id] = members;
       }
       setTeamMembers(membersData);
@@ -110,7 +110,7 @@ export default function TeamManagementPage() {
     try {
       const teamNumber = teams.find(t => t.id === selectedTeam)?.teamNumber;
 
-      const response = await fetch('http://localhost:5000/api/public/teams/join', {
+      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/public/teams/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -141,7 +141,7 @@ export default function TeamManagementPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      await fetch(`http://localhost:5000/api/quiz/team-members/${memberId}`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/quiz/team-members/${memberId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -163,7 +163,7 @@ export default function TeamManagementPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      await fetch(`http://localhost:5000/api/quiz/teams/${teamId}`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/quiz/teams/${teamId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -194,7 +194,7 @@ export default function TeamManagementPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:5000/api/quiz/teams/${teamId}/score`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/quiz/teams/${teamId}/score`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -223,7 +223,7 @@ export default function TeamManagementPage() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:5000/api/quiz/teams/reset-scores', {
+      const response = await fetch('${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/quiz/teams/reset-scores', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

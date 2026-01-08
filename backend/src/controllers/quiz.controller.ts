@@ -297,18 +297,54 @@ export const updateQuestion = async (req: AuthRequest, res: Response): Promise<v
 };
 
 // Toggle question enable/disable
+// Link to MCQ controller logic
+// import { enableBidRoundInternal, disableBidRoundInternal } from './mcq.controller';
+
 export const toggleQuestionStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { questionId } = req.params;
+    const { id } = req.params;
     const { isEnabled } = req.body;
 
+    // Update valid enabled status
     const [updated] = await db
       .update(questions)
       .set({ isEnabled })
-      .where(eq(questions.id, questionId))
+      .where(eq(questions.id, id))
       .returning();
 
-    res.json({ message: 'Question status updated', questionId, isEnabled });
+    // Special handling for MCQ Bidding questions
+    if (updated && updated.questionType === 'mcq_bidding') {
+      if (isEnabled === true || isEnabled === 'true') {
+        // INLINED ENABLE LOGIC to avoid import issues
+        const [config] = await db.select().from(quizConfig).limit(1);
+        if (config) {
+          await db.update(quizConfig).set({ isBidQuestionActive: true, currentQuestionId: id, updatedAt: new Date() }).where(eq(quizConfig.id, config.id));
+        }
+
+        // Ensure Timer State exists and is enabled
+        const [existingTimer] = await db.select().from(mcqTimerState).where(eq(mcqTimerState.questionId, id));
+        if (existingTimer) {
+          await db.update(mcqTimerState).set({ bidRoundEnabled: true, updatedAt: new Date() }).where(eq(mcqTimerState.questionId, id));
+        } else {
+          await db.insert(mcqTimerState).values({ questionId: id, bidRoundEnabled: true, isRunning: false, timeRemaining: 10, biddingClosed: false, answerRevealed: false });
+        }
+
+      } else {
+        // INLINED DISABLE LOGIC to avoid import issues
+        const [config] = await db.select().from(quizConfig).limit(1);
+        if (config) {
+          await db.update(quizConfig).set({ isBidQuestionActive: false, updatedAt: new Date() }).where(eq(quizConfig.id, config.id));
+        }
+
+        // Disable timer state
+        const [existingTimer] = await db.select().from(mcqTimerState).where(eq(mcqTimerState.questionId, id));
+        if (existingTimer) {
+          await db.update(mcqTimerState).set({ bidRoundEnabled: false, isRunning: false, timeRemaining: 10, startedAt: null, biddingClosed: false, answerRevealed: false, updatedAt: new Date() }).where(eq(mcqTimerState.questionId, id));
+        }
+      }
+    }
+
+    res.json({ message: 'Question status updated', questionId: id, isEnabled });
   } catch (error) {
     console.error('Toggle question status error:', error);
     res.status(500).json({ error: 'Internal server error' });

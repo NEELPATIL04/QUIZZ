@@ -42,7 +42,7 @@ export default function PresenterPage() {
 
   const fetchQuizConfig = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/public/config');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/public/config`);
       const data = await response.json();
       setShowAnswers(data.showAnswers || false);
       setShowScoreboard(data.isScoreboardVisible || false);
@@ -65,7 +65,7 @@ export default function PresenterPage() {
 
   const fetchBidResults = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/public/analytics/bid-round');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}/api/public/analytics/bid-round`);
       if (res.ok) {
         const data = await res.json();
         console.log('Bid Analytics Data:', data);
