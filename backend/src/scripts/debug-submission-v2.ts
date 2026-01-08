@@ -1,16 +1,16 @@
 import { db } from '../db';
-import { submissions, questions } from '../db/schema/quiz';
+import { teamAnswers, questions } from '../db/schema/quiz';
 import { desc, eq } from 'drizzle-orm';
 
 async function debugSubmission() {
     console.log('=== Debugging Latest Submission ===\n');
 
     try {
-        // Get the most recent submission
+        // Get the most recent submission from teamAnswers table
         const [latest] = await db
             .select()
-            .from(submissions)
-            .orderBy(desc(submissions.submittedAt))
+            .from(teamAnswers)
+            .orderBy(desc(teamAnswers.submittedAt))
             .limit(1);
 
         if (!latest) {
