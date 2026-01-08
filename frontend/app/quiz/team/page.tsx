@@ -273,11 +273,15 @@ export default function TeamQuizPage() {
         try {
           const parsed = JSON.parse(value);
           // Handle double-encoded JSON (common issue)
-          if (typeof parsed === 'string' && (parsed.startsWith('[') || parsed.startsWith('{'))) {
-            try {
-              return JSON.parse(parsed);
-            } catch {
-              return parsed; // Return first parse if second fails
+          // Check if result is still a string that looks like JSON
+          if (typeof parsed === 'string') {
+            const trimmedParsed = parsed.trim();
+            if (trimmedParsed.startsWith('[') || trimmedParsed.startsWith('{') || trimmedParsed.startsWith('"')) {
+              try {
+                return JSON.parse(parsed);
+              } catch {
+                return parsed; // Return first parse if second fails
+              }
             }
           }
 
