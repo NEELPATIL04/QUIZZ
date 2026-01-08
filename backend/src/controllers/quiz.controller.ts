@@ -367,13 +367,25 @@ export const updateQuestion = async (req: AuthRequest, res: Response): Promise<v
     const { id } = req.params;
     const { questionNumber, title, description, options, correctAnswer, points, timeLimit } = req.body;
 
+    // Handle options - check if already stringified to prevent double-encoding
+    let optionsString: string | undefined = undefined;
+    if (options) {
+      if (typeof options === 'string') {
+        // Already a string, use as-is
+        optionsString = options;
+      } else {
+        // It's an object/array, stringify it
+        optionsString = JSON.stringify(options);
+      }
+    }
+
     const [updated] = await db
       .update(questions)
       .set({
         questionNumber,
         title,
         description,
-        options: options ? JSON.stringify(options) : undefined,
+        options: optionsString,
         correctAnswer,
         points,
         timeLimit: timeLimit || null,
