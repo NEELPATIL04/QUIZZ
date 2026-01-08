@@ -38,7 +38,7 @@ export async function fixAllQuestions() {
       // The new Advanced CSS questions
       { num: 13, type: 'multiple_choice', titleKey: 'Grid Template Areas' },
       { num: 14, type: 'multiple_choice', titleKey: 'Pseudo-Class' },
-      { num: 15, type: 'mcq_bidding', titleKey: 'Stacking Context' },
+      { num: 15, type: 'mcq_bidding', titleKey: 'Flexbox Centering' },
 
       // MCQ Bidding (moved to end as per sequence)
       { num: 16, type: 'mcq_bidding', titleKey: 'Execution Sequence' },

@@ -73,31 +73,26 @@ Which pseudo-class selector formula produces this exact sequence?
         isEnabled: true,
     });
 
-    // Q15: The Stacking Context Trap (Temp ID 203)
+    // Q15: Flexbox Centering Master (Temp ID 203)
     const q15Options = [
-        { key: "A", text: "The Blue Card has `opacity: 0.9` which forces it behind." },
-        { key: "B", text: "The Red Card has `position: fixed` which always wins over relative." },
-        { key: "C", text: "Z-index is ignored because Flexbox is not used." },
-        { key: "D", text: "The Blue Card is trapped in the Grey Card's lower Stacking Context." }
+        { key: "A", text: "display: flex; justify-content: center; align-items: center;" },
+        { key: "B", text: "display: flex; align-content: center; justify-self: center;" },
+        { key: "C", text: "display: block; margin: auto; text-align: center;" },
+        { key: "D", text: "display: grid; grid-template-columns: center;" }
     ];
 
     await db.insert(questions).values({
         id: uuidv4(),
         questionNumber: 203,
         questionType: 'mcq_bidding',
-        title: 'The Stacking Context Trap',
+        title: 'Flexbox Centering Master',
         description: `
-![Stacking Context](/images/quiz/css_advanced_stacking_context.png)
+![Centering](/images/quiz/flexbox_centered.png)
 
-**Scenario:**
-1. **Grey Card** (Parent of Blue) has \`z-index: 1\`.
-2. **Red Card** (Sibling of Grey) has \`z-index: 2\`.
-3. **Blue Card** (Child of Grey) has \`z-index: 999\`.
-
-Despite having the highest z-index (999), the **Blue Card** still appears **BEHIND** the **Red Card**. Why?
+Which CSS properties are required on the **PARENT** container to perfectly center the blue child element both horizontally and vertically?
     `.trim(),
         options: JSON.stringify(q15Options),
-        correctAnswer: "D",
+        correctAnswer: "A",
         points: 100,
         isEnabled: true,
     });
