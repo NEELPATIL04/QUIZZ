@@ -102,7 +102,7 @@ export default function McqBiddingChallenge({
         }
       }
     } catch (error) {
-      console.error('Error fetching timer state:', error);
+      // Error fetching timer state
     }
   };
 
@@ -114,7 +114,7 @@ export default function McqBiddingChallenge({
       const data = await response.json();
       setMcqResults(data);
     } catch (error) {
-      console.error('Error fetching results:', error);
+      // Error fetching results
     }
   };
 
@@ -376,12 +376,12 @@ export default function McqBiddingChallenge({
                         }`}>
                         {option.key}
                       </div>
-                      <p className={`flex-1 text-base ${isCorrect
+                      <pre className={`flex-1 text-base font-mono whitespace-pre-wrap m-0 ${isCorrect
                         ? 'text-green-900 font-semibold'
                         : 'text-slate-800'
                         }`}>
                         {option.text}
-                      </p>
+                      </pre>
                     </div>
                   </CardContent>
                 </Card>

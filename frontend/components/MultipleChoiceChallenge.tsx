@@ -94,7 +94,7 @@ export default function MultipleChoiceChallenge({
             await onSubmit(answerPayload, timeTaken, startTime);
             setIsSubmitted(true);
         } catch (error) {
-            console.error('Submit error:', error);
+            // Submit error
         }
     };
 
@@ -222,9 +222,10 @@ export default function MultipleChoiceChallenge({
                                                             // Radio style for single
                                                             <span className="font-bold">{option.key}</span>
                                                         )}
-                                                    </div>                <div className="flex-1 font-mono text-slate-200">
-                                                        {option.text}
                                                     </div>
+                                                    <pre className="flex-1 font-mono text-slate-200 whitespace-pre-wrap m-0">
+                                                        {option.text}
+                                                    </pre>
                                                     {isOptionSelected(option.key) && (
                                                         <div className="absolute right-4 text-blue-400">
                                                             <CheckCircle className="h-6 w-6" />

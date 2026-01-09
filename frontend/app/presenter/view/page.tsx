@@ -233,10 +233,10 @@ export default function PresenterViewPage() {
                       }`}>
                       {option.key}.
                     </div>
-                    <p className={`text-2xl flex-1 ${isCorrect ? 'text-white font-bold' : 'text-white'
+                    <pre className={`text-2xl flex-1 font-mono whitespace-pre-wrap m-0 ${isCorrect ? 'text-white font-bold' : 'text-white'
                       }`}>
                       {option.text}
-                    </p>
+                    </pre>
                   </div>
 
                   {/* Bid Display (shown after bidding closes) */}

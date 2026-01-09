@@ -437,7 +437,7 @@ export default function PresenterPage() {
                                     <div key={option.key} className="bg-green-600 rounded-lg p-6 border-2 border-green-400">
                                       <div className="flex items-start gap-4">
                                         <span className="text-4xl font-bold text-white">{option.key}.</span>
-                                        <p className="text-2xl text-white flex-1">{option.text}</p>
+                                        <pre className="text-2xl text-white flex-1 font-mono whitespace-pre-wrap m-0">{option.text}</pre>
                                         <span className="text-3xl">✓</span>
                                       </div>
                                     </div>
