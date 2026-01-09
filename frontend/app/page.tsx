@@ -82,17 +82,13 @@ export default function LoginPage() {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-muted-foreground space-y-2">
-            <p>Default credentials:</p>
-            <p className="font-mono text-xs">admin@quizz.com / Admin@123</p>
-            <div className="pt-2">
-              <a
-                href="/quiz"
-                className="text-blue-600 hover:text-blue-800 font-medium"
-              >
-                Join Quiz (No Login Required) →
-              </a>
-            </div>
+          <div className="mt-4 text-center text-sm text-muted-foreground">
+            <a
+              href="/quiz"
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Join Quiz (No Login Required) →
+            </a>
           </div>
         </CardContent>
       </Card>
