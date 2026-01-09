@@ -13,7 +13,7 @@
 Question #: 1
 Type: git_challenge
 Title: John's Git Journey
-Points: 100
+Points: 100 mjdlmdl;md;kjm
 Completed Commands: 7
 Available Commands: 6
 Status: Disabled (needs to be enabled by admin)
