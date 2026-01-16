@@ -161,9 +161,20 @@ export default function MultipleChoiceChallenge({
                         <div className="prose prose-invert max-w-none text-slate-100 [&>img]:mt-6 [&>img]:rounded-lg [&>img]:border [&>img]:border-white/10 [&>img]:max-w-md [&>img]:max-h-96 [&>img]:object-contain">
                             <ReactMarkdown
                                 components={{
-                                    pre: ({ node, ...props }: any) => <div className="bg-slate-950 p-4 rounded-lg overflow-x-auto border border-slate-800 text-slate-50 whitespace-pre-wrap" {...props} />,
-                                    code: ({ node, ...props }: any) => <code className="text-blue-300 font-mono text-sm" {...props} />,
-                                    p: ({ node, ...props }: any) => <p className="text-slate-100 leading-relaxed mb-4" {...props} />,
+                                    pre: ({ node, children, ...props }: any) => (
+                                        <pre className="bg-slate-950 p-4 rounded-lg overflow-x-auto border border-slate-800 my-4 font-mono text-sm" {...props}>
+                                            {children}
+                                        </pre>
+                                    ),
+                                    code: ({ node, inline, className, children, ...props }: any) => {
+                                        // Check if this is inline code or a code block
+                                        if (inline) {
+                                            return <code className="bg-slate-800 text-blue-300 px-1.5 py-0.5 rounded font-mono text-sm" {...props}>{children}</code>;
+                                        }
+                                        // Code block - preserve whitespace and line breaks
+                                        return <code className="text-green-300 font-mono text-sm whitespace-pre-wrap break-words" {...props}>{children}</code>;
+                                    },
+                                    p: ({ node, ...props }: any) => <p className="text-slate-100 leading-relaxed mb-4 whitespace-pre-wrap" {...props} />,
                                     li: ({ node, ...props }: any) => <li className="text-slate-100 ml-4" {...props} />,
                                     strong: ({ node, ...props }: any) => <strong className="text-white font-bold" {...props} />,
                                     img: ({ node, src, ...props }: any) => {

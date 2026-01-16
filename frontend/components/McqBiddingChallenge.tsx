@@ -292,9 +292,20 @@ export default function McqBiddingChallenge({
               <div className="prose prose-slate max-w-none [&>img]:max-w-md [&>img]:max-h-96 [&>img]:object-contain [&>img]:rounded-lg [&>img]:border [&>img]:border-slate-300">
                 <ReactMarkdown
                   components={{
-                    pre: ({ node, ...props }: any) => <div className="bg-slate-900 p-4 rounded-lg overflow-x-auto text-slate-50 border border-slate-700 my-4" {...props} />,
-                    code: ({ node, ...props }: any) => <code className="bg-slate-100 text-pink-600 px-1 py-0.5 rounded font-mono text-sm border border-slate-200" {...props} />,
-                    p: ({ node, ...props }: any) => <p className="text-slate-700 leading-relaxed mb-4" {...props} />,
+                    pre: ({ node, children, ...props }: any) => (
+                      <pre className="bg-slate-900 p-4 rounded-lg overflow-x-auto border border-slate-700 my-4 font-mono text-sm" {...props}>
+                        {children}
+                      </pre>
+                    ),
+                    code: ({ node, inline, className, children, ...props }: any) => {
+                      // Check if this is inline code or a code block
+                      if (inline) {
+                        return <code className="bg-slate-100 text-pink-600 px-1.5 py-0.5 rounded font-mono text-sm border border-slate-200" {...props}>{children}</code>;
+                      }
+                      // Code block - preserve whitespace and line breaks
+                      return <code className="text-green-300 font-mono text-sm whitespace-pre-wrap break-words" {...props}>{children}</code>;
+                    },
+                    p: ({ node, ...props }: any) => <p className="text-slate-700 leading-relaxed mb-4 whitespace-pre-wrap" {...props} />,
                     img: ({ node, src, ...props }: any) => {
                       // Convert relative image URLs to absolute backend URLs
                       const imageSrc = src?.startsWith('/images')
