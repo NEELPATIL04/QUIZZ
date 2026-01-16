@@ -379,18 +379,29 @@ export default function QuestionsPage() {
 
     try {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        alert('You are not logged in. Please login again.');
+        return;
+      }
+
+      console.log('Uploading image with token:', token.substring(0, 20) + '...');
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/quiz/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: uploadData
       });
 
+      console.log('Upload response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        if (response.status === 401) {
+          throw new Error('Authentication failed. Please logout and login again.');
+        }
         throw new Error(errorData.error || 'Upload failed');
       }
       const data = await response.json();
