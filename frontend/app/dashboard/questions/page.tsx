@@ -60,6 +60,7 @@ export default function QuestionsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const pausePollingRef = useRef(false);
   const lastManualUpdateRef = useRef<{ [questionId: string]: number }>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchQuestions();
@@ -388,20 +389,42 @@ export default function QuestionsPage() {
         body: uploadData
       });
 
-      if (!response.ok) throw new Error('Upload failed');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Upload failed');
+      }
       const data = await response.json();
 
-      // Append markdown image to description
-      const imageMarkdown = `\n\n![Question Image](${data.url})`;
-      setFormData(prev => ({
-        ...prev,
-        description: prev.description + imageMarkdown
-      }));
+      // Check if description already has an image
+      const imageMarkdown = `![Question Image](${data.url})`;
+      const imageRegex = /!\[.*?\]\(\/images\/.*?\)/g;
 
-      alert('Image uploaded and added to description!');
-    } catch (error) {
+      setFormData(prev => {
+        let newDescription = prev.description;
+
+        // If editing and description already has an image, replace it
+        if (imageRegex.test(prev.description)) {
+          newDescription = prev.description.replace(imageRegex, imageMarkdown);
+        } else {
+          // Otherwise append the new image
+          newDescription = prev.description + (prev.description ? '\n\n' : '') + imageMarkdown;
+        }
+
+        return {
+          ...prev,
+          description: newDescription
+        };
+      });
+
+      alert('Image uploaded successfully!');
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error: any) {
       console.error('Upload Error:', error);
-      alert('Failed to upload image.');
+      alert(error.message || 'Failed to upload image.');
     }
   };
 
@@ -571,6 +594,11 @@ export default function QuestionsPage() {
     });
     setIsEditing(false);
     setEditingId(null);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleToggleQuestion = async (questionId: string, currentStatus: boolean) => {
@@ -836,12 +864,32 @@ export default function QuestionsPage() {
                       <Label>Upload Image</Label>
                       <div className="flex gap-2 items-center">
                         <Input
+                          ref={fileInputRef}
                           type="file"
                           accept="image/*"
                           onChange={handleImageUpload}
                         />
                       </div>
-                      <p className="text-xs text-blue-600">Image will be appended to description automatically.</p>
+                      <p className="text-xs text-blue-600">
+                        {isEditing ? 'Upload a new image to replace the existing one.' : 'Image will be added to description automatically.'}
+                      </p>
+
+                      {/* Show current image preview if editing and description has an image */}
+                      {isEditing && formData.description && /!\[.*?\]\(\/images\/.*?\)/.test(formData.description) && (
+                        <div className="mt-3">
+                          <Label className="text-xs text-slate-600 mb-1 block">Current Image:</Label>
+                          <div className="border border-blue-200 rounded-lg p-2 bg-white">
+                            <img
+                              src={`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${formData.description.match(/!\[.*?\]\((\/images\/.*?)\)/)?.[1] || ''}`}
+                              alt="Current question"
+                              className="max-w-xs max-h-48 object-contain rounded"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 

@@ -63,6 +63,9 @@ const upload = multer({ storage: storage });
 
 const router = Router();
 
+// All routes require authentication
+router.use(authenticate);
+
 router.post('/upload', authorize('super_admin', 'admin'), upload.single('image'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
@@ -71,9 +74,6 @@ router.post('/upload', authorize('super_admin', 'admin'), upload.single('image')
   const fileUrl = `/images/${req.file.filename}`;
   res.json({ url: fileUrl });
 });
-
-// All routes require authentication
-router.use(authenticate);
 
 // Team management and config routes - super_admin only
 router.get('/config', authorize('super_admin'), getQuizConfig);

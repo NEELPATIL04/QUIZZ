@@ -166,6 +166,13 @@ export default function MultipleChoiceChallenge({
                                     p: ({ node, ...props }: any) => <p className="text-slate-100 leading-relaxed mb-4" {...props} />,
                                     li: ({ node, ...props }: any) => <li className="text-slate-100 ml-4" {...props} />,
                                     strong: ({ node, ...props }: any) => <strong className="text-white font-bold" {...props} />,
+                                    img: ({ node, src, ...props }: any) => {
+                                        // Convert relative image URLs to absolute backend URLs
+                                        const imageSrc = src?.startsWith('/images')
+                                            ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${src}`
+                                            : src;
+                                        return <img src={imageSrc} {...props} />;
+                                    },
                                 }}
                             >
                                 {question.description}

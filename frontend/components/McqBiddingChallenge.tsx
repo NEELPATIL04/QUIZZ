@@ -295,7 +295,13 @@ export default function McqBiddingChallenge({
                     pre: ({ node, ...props }: any) => <div className="bg-slate-900 p-4 rounded-lg overflow-x-auto text-slate-50 border border-slate-700 my-4" {...props} />,
                     code: ({ node, ...props }: any) => <code className="bg-slate-100 text-pink-600 px-1 py-0.5 rounded font-mono text-sm border border-slate-200" {...props} />,
                     p: ({ node, ...props }: any) => <p className="text-slate-700 leading-relaxed mb-4" {...props} />,
-                    img: ({ node, ...props }: any) => <img className="max-w-md max-h-96 object-contain rounded-lg border border-slate-300" {...props} />
+                    img: ({ node, src, ...props }: any) => {
+                      // Convert relative image URLs to absolute backend URLs
+                      const imageSrc = src?.startsWith('/images')
+                        ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')}${src}`
+                        : src;
+                      return <img src={imageSrc} className="max-w-md max-h-96 object-contain rounded-lg border border-slate-300" {...props} />;
+                    },
                   }}
                 >
                   {question.description}
